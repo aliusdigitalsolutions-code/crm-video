@@ -91,6 +91,14 @@ export default function AdminClient(props: { initial: Appointment[] }) {
     await onSave(id, { note_social: "Da pubblicare" });
   }
 
+  async function onAssignVideomakerTask(id: string, paese_citta: string | null, data_shooting: string | null, note_video: string | null) {
+    await onSave(id, { paese_citta, data_shooting, note_video });
+  }
+
+  async function onAssignSMMTask(id: string, note_social: string | null, link_pubblicazione: string | null) {
+    await onSave(id, { note_social, link_pubblicazione });
+  }
+
   async function onInsert(newAppointment: Omit<Appointment, "id" | "created_at">) {
     setError(null);
     setLoading(true);
@@ -127,6 +135,103 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                 <div key={p.id} className="flex items-center justify-between rounded-lg border p-2">
                   <div className="text-sm font-medium">{p.full_name}</div>
                   <BadgeNeutral>{p.role}</BadgeNeutral>
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Assegna a Videomaker */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Assegna a Videomaker</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {appointments.filter(a => a.stato === "chiuso").length === 0 ? (
+              <p className="text-sm text-zinc-600">Nessun cliente chiuso da assegnare.</p>
+            ) : (
+              appointments.filter(a => a.stato === "chiuso").map((a) => (
+                <div key={a.id} className="rounded-lg border p-3">
+                  <div className="text-sm font-semibold mb-2">{a.cliente_nome}</div>
+                  <div className="space-y-2">
+                    <input
+                      className="w-full rounded-md border px-2 py-1 text-xs"
+                      placeholder="Paese/Città"
+                      id={`videomaker-paese-${a.id}`}
+                      defaultValue={a.paese_citta ?? ""}
+                    />
+                    <input
+                      className="w-full rounded-md border px-2 py-1 text-xs"
+                      placeholder="Data shooting (ISO)"
+                      id={`videomaker-data-${a.id}`}
+                      defaultValue={a.data_shooting ?? ""}
+                    />
+                    <textarea
+                      className="w-full rounded-md border px-2 py-1 text-xs"
+                      placeholder="Note video"
+                      id={`videomaker-note-${a.id}`}
+                      defaultValue={a.note_video ?? ""}
+                    />
+                    <button
+                      className="h-8 rounded-md bg-blue-600 px-3 text-xs text-white"
+                      onClick={() => {
+                        const paese_citta = (document.getElementById(`videomaker-paese-${a.id}`) as HTMLInputElement)?.value || null;
+                        const data_shooting = (document.getElementById(`videomaker-data-${a.id}`) as HTMLInputElement)?.value || null;
+                        const note_video = (document.getElementById(`videomaker-note-${a.id}`) as HTMLTextAreaElement)?.value || null;
+                        onAssignVideomakerTask(a.id, paese_citta, data_shooting, note_video);
+                      }}
+                      disabled={loading}
+                    >
+                      Assegna
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Assegna a SMM */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Assegna a SMM</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {appointments.filter(a => ["chiuso", "in_prova", "potenziale"].includes(a.stato)).length === 0 ? (
+              <p className="text-sm text-zinc-600">Nessun cliente attivo da assegnare.</p>
+            ) : (
+              appointments.filter(a => ["chiuso", "in_prova", "potenziale"].includes(a.stato)).map((a) => (
+                <div key={a.id} className="rounded-lg border p-3">
+                  <div className="text-sm font-semibold mb-2">{a.cliente_nome}</div>
+                  <div className="space-y-2">
+                    <textarea
+                      className="w-full rounded-md border px-2 py-1 text-xs"
+                      placeholder="Note social"
+                      id={`smm-note-${a.id}`}
+                      defaultValue={a.note_social ?? ""}
+                    />
+                    <input
+                      className="w-full rounded-md border px-2 py-1 text-xs"
+                      placeholder="Link pubblicazione"
+                      id={`smm-link-${a.id}`}
+                      defaultValue={a.link_pubblicazione ?? ""}
+                    />
+                    <button
+                      className="h-8 rounded-md bg-green-600 px-3 text-xs text-white"
+                      onClick={() => {
+                        const note_social = (document.getElementById(`smm-note-${a.id}`) as HTMLTextAreaElement)?.value || null;
+                        const link_pubblicazione = (document.getElementById(`smm-link-${a.id}`) as HTMLInputElement)?.value || null;
+                        onAssignSMMTask(a.id, note_social, link_pubblicazione);
+                      }}
+                      disabled={loading}
+                    >
+                      Assegna
+                    </button>
+                  </div>
                 </div>
               ))
             )}
