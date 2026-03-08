@@ -4,6 +4,7 @@ import { fetchMyRole } from "@/lib/supabase/profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import RepresentanteClient from "@/app/dashboard-vendite/RepresentanteClient";
 import CalendarView from "@/app/dashboard-vendite/CalendarView";
+import TestCalendar from "@/app/dashboard-vendite/TestCalendar";
 
 export default async function DashboardVenditePage() {
   const supabase = await createSupabaseServerClient();
@@ -37,7 +38,10 @@ export default async function DashboardVenditePage() {
           Calendario videocall e appuntamenti.
         </p>
       </div>
-      <CalendarView initial={appointments ?? []} />
+      
+      {/* TEST: Sostituito temporaneamente CalendarView con TestCalendar */}
+      <TestCalendar />
+      
       <div className="mt-8">
         <RepresentanteClient initial={appointments ?? []} />
       </div>
