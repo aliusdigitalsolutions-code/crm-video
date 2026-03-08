@@ -46,7 +46,7 @@ const eventStyleGetter = (event: CalendarEvent) => {
 };
 
 export default function CalendarComponent({ 
-  events, 
+  events = [], 
   onEventClick, 
   onDateClick,
   view = Views.MONTH,
