@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { fetchMyRole } from "@/lib/supabase/profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import RepresentanteClient from "@/app/dashboard-vendite/RepresentanteClient";
-import TestCalendar from "@/app/dashboard-vendite/TestCalendar";
+import SimpleCalendar from "@/app/dashboard-vendite/SimpleCalendar";
 
 export default async function DashboardVenditePage() {
   const supabase = await createSupabaseServerClient();
@@ -38,8 +38,7 @@ export default async function DashboardVenditePage() {
         </p>
       </div>
       
-      {/* MOSTRIAMO SOLO TESTCALENDAR PER DEBUG */}
-      <TestCalendar />
+      <SimpleCalendar />
       
       <div className="mt-8">
         <RepresentanteClient initial={appointments ?? []} />
