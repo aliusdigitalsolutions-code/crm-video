@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { fetchMyRole } from "@/lib/supabase/profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import RepresentanteClient from "@/app/dashboard-vendite/RepresentanteClient";
-import CalendarView from "@/app/dashboard-vendite/CalendarView";
 import TestCalendar from "@/app/dashboard-vendite/TestCalendar";
 
 export default async function DashboardVenditePage() {
@@ -39,7 +38,7 @@ export default async function DashboardVenditePage() {
         </p>
       </div>
       
-      {/* TEST: Sostituito temporaneamente CalendarView con TestCalendar */}
+      {/* MOSTRIAMO SOLO TESTCALENDAR PER DEBUG */}
       <TestCalendar />
       
       <div className="mt-8">

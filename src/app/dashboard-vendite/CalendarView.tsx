@@ -68,11 +68,58 @@ export default function CalendarView({ initial }: { initial: Appointment[] }) {
           </p>
         </CardHeader>
         <CardContent>
-          <CalendarComponent
-            events={events}
-            onEventClick={handleEventClick}
-            onDateClick={handleDateClick}
-          />
+          <div className="h-[600px] bg-white rounded-lg border p-4">
+            <div className="mb-4 flex justify-between items-center">
+              <h3 className="font-semibold">Calendario Semplificato</h3>
+              <span className="text-sm text-zinc-600">
+                {new Date().toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })}
+              </span>
+            </div>
+            <div className="grid grid-cols-7 gap-1 text-xs">
+              {["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"].map(day => (
+                <div key={day} className="p-2 text-center font-semibold bg-gray-100 rounded">
+                  {day}
+                </div>
+              ))}
+              {Array.from({ length: 35 }, (_, i) => {
+                const dayNum = i + 1;
+                const isToday = dayNum === new Date().getDate();
+                const hasEvent = events.some(event => 
+                  event.start.getDate() === dayNum && 
+                  event.start.getMonth() === new Date().getMonth()
+                );
+                
+                return (
+                  <div 
+                    key={i} 
+                    className={`p-2 text-center border rounded cursor-pointer transition-colors
+                      ${isToday ? 'bg-blue-100 border-blue-500' : 'hover:bg-gray-50'}
+                      ${hasEvent ? 'bg-green-100 border-green-500' : ''}
+                    `}
+                  >
+                    <div className="font-medium">{dayNum}</div>
+                    {hasEvent && (
+                      <div className="w-2 h-2 bg-green-500 rounded-full mx-auto mt-1"></div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            
+            {hasEvents && (
+              <div className="mt-4 p-3 bg-gray-50 rounded">
+                <h4 className="font-medium text-sm mb-2">Eventi del mese:</h4>
+                {events.map(event => (
+                  <div key={event.id} className="text-xs p-2 bg-green-100 rounded mb-1">
+                    <span className="font-medium">{event.title}</span>
+                    <span className="text-zinc-600 ml-2">
+                      {event.start.toLocaleDateString()} alle {event.start.toLocaleTimeString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
