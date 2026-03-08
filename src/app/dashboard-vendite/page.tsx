@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { fetchMyRole } from "@/lib/supabase/profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import RepresentanteClient from "@/app/dashboard-vendite/RepresentanteClient";
+import CalendarView from "@/app/dashboard-vendite/CalendarView";
 
 export default async function DashboardVenditePage() {
   const supabase = await createSupabaseServerClient();
@@ -23,7 +24,7 @@ export default async function DashboardVenditePage() {
   const { data: appointments } = await supabase
     .from("appointments")
     .select(
-      "id, created_at, cliente_nome, stato, data_videocall, note_commerciali, messaggio_originale_whatsapp",
+      "id, created_at, cliente_nome, stato, data_videocall, note_commerciali, messaggio_originale_whatsapp, prezzo_accordo",
     )
     .order("created_at", { ascending: false })
     .limit(20);
@@ -33,10 +34,13 @@ export default async function DashboardVenditePage() {
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">Dashboard Vendite</h1>
         <p className="mt-1 text-sm text-zinc-600">
-          I tuoi appuntamenti.
+          Calendario videocall e appuntamenti.
         </p>
       </div>
-      <RepresentanteClient initial={appointments ?? []} />
+      <CalendarView initial={appointments ?? []} />
+      <div className="mt-8">
+        <RepresentanteClient initial={appointments ?? []} />
+      </div>
     </div>
   );
 }

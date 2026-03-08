@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { fetchMyRole } from "@/lib/supabase/profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import VideomakerClient from "@/app/agenda-shooting/VideomakerClient";
+import VideomakerCalendarView from "@/app/agenda-shooting/CalendarView";
 
 export default async function AgendaShootingPage() {
   const supabase = await createSupabaseServerClient();
@@ -23,21 +24,23 @@ export default async function AgendaShootingPage() {
   const { data: appointments } = await supabase
     .from("appointments_safe")
     .select(
-      "id, cliente_nome, stato, paese_citta, data_shooting, note_video, file_contratto_url",
+      "id, cliente_nome, stato, data_shooting, paese_citta, note_video, file_contratto_url",
     )
     .eq("stato", "chiuso")
-    .order("created_at", { ascending: false })
-    .limit(50);
+    .order("data_shooting", { ascending: true });
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">Agenda Shooting</h1>
         <p className="mt-1 text-sm text-zinc-600">
-          Clienti chiusi + note video + upload file su Storage.
+          Calendario shooting e clienti chiusi.
         </p>
       </div>
-      <VideomakerClient initial={appointments ?? []} />
+      <VideomakerCalendarView initial={appointments ?? []} />
+      <div className="mt-8">
+        <VideomakerClient initial={appointments ?? []} />
+      </div>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { fetchMyRole } from "@/lib/supabase/profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import AdminClient from "@/app/admin/AdminClient";
+import AdminCalendarView from "@/app/admin/CalendarView";
 
 export default async function AdminPage() {
   const supabase = await createSupabaseServerClient();
@@ -31,10 +32,13 @@ export default async function AdminPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">Admin</h1>
         <p className="mt-1 text-sm text-zinc-600">
-          Gestisci tutti gli appuntamenti e assegna compiti.
+          Calendario completo e gestione appuntamenti.
         </p>
       </div>
-      <AdminClient initial={appointments ?? []} />
+      <AdminCalendarView initial={appointments ?? []} />
+      <div className="mt-8">
+        <AdminClient initial={appointments ?? []} />
+      </div>
     </div>
   );
 }
