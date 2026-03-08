@@ -93,6 +93,9 @@ export default function AdminCalendarView({ initial }: { initial: Appointment[] 
       return eventList;
     });
 
+  // Always show calendar even if no events
+  const hasEvents = events.length > 0;
+
   const handleEventClick = (event: CalendarEvent) => {
     setSelectedEvent(event);
     setShowDetails(true);
@@ -107,6 +110,9 @@ export default function AdminCalendarView({ initial }: { initial: Appointment[] 
       <Card>
         <CardHeader>
           <CardTitle>Calendario Completo</CardTitle>
+          <p className="text-sm text-zinc-600">
+            {!hasEvents ? "Nessun evento programmato" : `${events.length} eventi programmati`}
+          </p>
         </CardHeader>
         <CardContent>
           <CalendarComponent

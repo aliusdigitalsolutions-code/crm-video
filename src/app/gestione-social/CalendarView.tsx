@@ -51,6 +51,9 @@ export default function SMMCalendarView({ initial }: { initial: Appointment[] })
       };
     });
 
+  // Always show calendar even if no events
+  const hasEvents = events.length > 0;
+
   const handleEventClick = (event: CalendarEvent) => {
     setSelectedEvent(event);
     setShowDetails(true);
@@ -65,6 +68,9 @@ export default function SMMCalendarView({ initial }: { initial: Appointment[] })
       <Card>
         <CardHeader>
           <CardTitle>Calendario Pubblicazioni</CardTitle>
+          <p className="text-sm text-zinc-600">
+            {!hasEvents ? "Nessuna pubblicazione programmata" : `${events.length} pubblicazioni programmate`}
+          </p>
         </CardHeader>
         <CardContent>
           <CalendarComponent

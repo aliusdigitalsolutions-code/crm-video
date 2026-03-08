@@ -45,6 +45,9 @@ export default function VideomakerCalendarView({ initial }: { initial: Appointme
       };
     });
 
+  // Always show calendar even if no events
+  const hasEvents = events.length > 0;
+
   const handleEventClick = (event: CalendarEvent) => {
     setSelectedEvent(event);
     setShowDetails(true);
@@ -59,6 +62,9 @@ export default function VideomakerCalendarView({ initial }: { initial: Appointme
       <Card>
         <CardHeader>
           <CardTitle>Calendario Shooting</CardTitle>
+          <p className="text-sm text-zinc-600">
+            {!hasEvents ? "Nessuno shooting programmato" : `${events.length} shooting programmati`}
+          </p>
         </CardHeader>
         <CardContent>
           <CalendarComponent

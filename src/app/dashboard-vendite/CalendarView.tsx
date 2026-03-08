@@ -45,6 +45,9 @@ export default function CalendarView({ initial }: { initial: Appointment[] }) {
       };
     });
 
+  // Always show calendar even if no events
+  const hasEvents = events.length > 0;
+
   const handleEventClick = (event: CalendarEvent) => {
     setSelectedEvent(event);
     setShowDetails(true);
@@ -60,6 +63,9 @@ export default function CalendarView({ initial }: { initial: Appointment[] }) {
       <Card>
         <CardHeader>
           <CardTitle>Calendario Videocall</CardTitle>
+          <p className="text-sm text-zinc-600">
+            {!hasEvents ? "Nessuna videocall programmata" : `${events.length} videocall programmate`}
+          </p>
         </CardHeader>
         <CardContent>
           <CalendarComponent
