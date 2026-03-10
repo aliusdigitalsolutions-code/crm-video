@@ -9,7 +9,7 @@ function createSupabaseRouteClient(request: NextRequest) {
     throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
   }
 
-  let response = NextResponse.next();
+  const response = NextResponse.next();
 
   const supabase = createServerClient(url, anonKey, {
     cookies: {

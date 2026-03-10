@@ -8,6 +8,6 @@ export type CalendarEvent = {
     stato: string;
     tipo: "videocall" | "shooting" | "pubblicazione";
     note?: string | null | undefined;
-    full_data?: any;
+    full_data?: unknown;
   };
 };

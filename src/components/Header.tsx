@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { roleHomePath, type UserRole } from "@/lib/supabase/roles";
 
-export default function Header({ role }: { role: UserRole }) {
+export default function Header({
+  role,
+  buildLabel,
+}: {
+  role: UserRole;
+  buildLabel?: string | null;
+}) {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [loading, setLoading] = useState(false);
@@ -26,6 +32,15 @@ export default function Header({ role }: { role: UserRole }) {
           <div className="hidden sm:block rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700">
             {role}
           </div>
+          {buildLabel ? (
+            <a
+              href="/version"
+              className="hidden sm:block rounded-md bg-zinc-50 px-2 py-1 text-[10px] font-medium text-zinc-500 hover:text-zinc-900"
+              title="Apri /version"
+            >
+              {buildLabel}
+            </a>
+          ) : null}
         </div>
 
         <nav className="hidden sm:flex items-center gap-4">

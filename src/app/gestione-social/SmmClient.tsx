@@ -2,10 +2,18 @@
 
 import { useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { BadgeSuccess, BadgeNeutral, BadgeWarning } from "@/components/ui/Badge";
+import { BadgeNeutral } from "@/components/ui/Badge";
 import { Toast } from "@/components/ui/Toast";
 
-export default function SmmClient(props: { initial: any[] }) {
+type Appointment = {
+  id: string;
+  cliente_nome: string;
+  stato: string;
+  note_social: string | null;
+  link_pubblicazione: string | null;
+};
+
+export default function SmmClient(props: { initial: Appointment[] }) {
   const [items, setItems] = useState(props.initial);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +75,7 @@ export default function SmmClient(props: { initial: any[] }) {
                         type="url"
                         placeholder="Link pubblicazione"
                         defaultValue={a.link_pubblicazione ?? ""}
+                        data-id={a.id}
                         className="h-8 flex-1 rounded-md border px-2 text-xs"
                         disabled={updatingId === a.id}
                       />

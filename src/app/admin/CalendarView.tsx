@@ -27,6 +27,14 @@ export default function AdminCalendarView({ initial }: { initial: Appointment[] 
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
+  const selectedFullData = (selectedEvent?.resource.full_data ?? null) as
+    | {
+        prezzo_accordo?: number | null;
+        paese_citta?: string | null;
+        link_pubblicazione?: string | null;
+      }
+    | null;
+
   // Convert all appointments to calendar events
   const events: CalendarEvent[] = appointments
     .flatMap(a => {
@@ -72,7 +80,7 @@ export default function AdminCalendarView({ initial }: { initial: Appointment[] 
       
       // Publication event
       if (a.link_pubblicazione) {
-        let eventDate = new Date(a.created_at);
+        const eventDate = new Date(a.created_at);
         const startDate = eventDate;
         const endDate = new Date(startDate.getTime() + 30 * 60 * 1000); // 30 minutes
         eventList.push({
@@ -142,9 +150,9 @@ export default function AdminCalendarView({ initial }: { initial: Appointment[] 
               
               <div className="flex gap-2">
                 <BadgeNeutral>{selectedEvent.resource.stato}</BadgeNeutral>
-                {selectedEvent.resource.full_data.prezzo_accordo && (
-                  <BadgeSuccess>€{selectedEvent.resource.full_data.prezzo_accordo}</BadgeSuccess>
-                )}
+                {selectedFullData?.prezzo_accordo ? (
+                  <BadgeSuccess>€{selectedFullData.prezzo_accordo}</BadgeSuccess>
+                ) : null}
               </div>
               
               {selectedEvent.resource.note && (
@@ -154,17 +162,17 @@ export default function AdminCalendarView({ initial }: { initial: Appointment[] 
                 </div>
               )}
               
-              {selectedEvent.resource.tipo === "shooting" && selectedEvent.resource.full_data.paese_citta && (
+              {selectedEvent.resource.tipo === "shooting" && selectedFullData?.paese_citta ? (
                 <div>
                   <h4 className="font-medium text-sm">Luogo:</h4>
-                  <p className="text-sm text-zinc-600">{selectedEvent.resource.full_data.paese_citta}</p>
+                  <p className="text-sm text-zinc-600">{selectedFullData.paese_citta}</p>
                 </div>
-              )}
+              ) : null}
               
-              {selectedEvent.resource.tipo === "pubblicazione" && selectedEvent.resource.full_data.link_pubblicazione && (
+              {selectedEvent.resource.tipo === "pubblicazione" && selectedFullData?.link_pubblicazione ? (
                 <div>
                   <a
-                    href={selectedEvent.resource.full_data.link_pubblicazione}
+                    href={selectedFullData.link_pubblicazione}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-blue-600 underline"
@@ -172,7 +180,7 @@ export default function AdminCalendarView({ initial }: { initial: Appointment[] 
                     Apri pubblicazione
                   </a>
                 </div>
-              )}
+              ) : null}
               
               <div className="flex gap-2 pt-2">
                 <button

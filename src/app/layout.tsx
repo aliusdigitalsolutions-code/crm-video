@@ -5,7 +5,6 @@ import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { fetchMyRole } from "@/lib/supabase/profile";
-import { redirect } from "next/navigation";
 import { type UserRole } from "@/lib/supabase/roles";
 
 const geistSans = Geist({
@@ -39,6 +38,14 @@ export default async function RootLayout({
     role = await fetchMyRole(supabase);
   }
 
+  const buildLabel = (() => {
+    const env = process.env.VERCEL_ENV ?? null;
+    const sha = process.env.VERCEL_GIT_COMMIT_SHA ?? null;
+    if (!env && !sha) return null;
+    const shortSha = sha ? sha.slice(0, 7) : null;
+    return `${env ?? "-"}${shortSha ? `@${shortSha}` : ""}`;
+  })();
+
   const isLoginPage = children?.toString().includes("LoginPage") || false;
 
   return (
@@ -48,7 +55,7 @@ export default async function RootLayout({
       >
         {user && role && !isLoginPage ? (
           <div className="flex h-full flex-col">
-            <Header role={role} />
+            <Header role={role} buildLabel={buildLabel} />
             <main className="flex-1 overflow-y-auto pb-14 sm:pb-0">{children}</main>
             <BottomNav role={role} />
           </div>

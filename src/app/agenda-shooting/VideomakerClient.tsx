@@ -2,10 +2,18 @@
 
 import { useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { BadgeSuccess, BadgeNeutral } from "@/components/ui/Badge";
 import { Toast } from "@/components/ui/Toast";
 
-export default function VideomakerClient(props: { initial: any[] }) {
+type Appointment = {
+  id: string;
+  cliente_nome: string;
+  paese_citta: string | null;
+  note_video: string | null;
+  data_shooting: string | null;
+  file_contratto_url: string | null;
+};
+
+export default function VideomakerClient(props: { initial: Appointment[] }) {
   const [items, setItems] = useState(props.initial);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
