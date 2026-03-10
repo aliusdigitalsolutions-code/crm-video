@@ -29,6 +29,34 @@ function formatSupabaseError(e: unknown) {
   return String(e);
 }
 
+function splitDateTime(value: string | null) {
+  if (!value) return { date: "", time: "" };
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return { date: "", time: "" };
+  const date = d.toISOString().slice(0, 10);
+  const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return { date, time };
+}
+
+function combineDateTime(date: string, time: string) {
+  if (!date) return null;
+  if (!time) return null;
+  return `${date}T${time}:00`;
+}
+
+function formatDateTimeIt(value: string | null) {
+  if (!value) return "-";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleString("it-IT", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 type Profile = {
   id: string;
   full_name: string;
@@ -307,11 +335,18 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                   <option value="in_prova">In prova</option>
                   <option value="perso">Perso</option>
                 </select>
-                <input
-                  className="w-full rounded-md border px-2 py-1 text-xs"
-                  placeholder="Data videocall (ISO)"
-                  id="new-data-videocall"
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    className="w-full rounded-md border px-2 py-1 text-xs"
+                    type="date"
+                    id="new-data-videocall-date"
+                  />
+                  <input
+                    className="w-full rounded-md border px-2 py-1 text-xs"
+                    type="time"
+                    id="new-data-videocall-time"
+                  />
+                </div>
                 <input
                   className="w-full rounded-md border px-2 py-1 text-xs"
                   placeholder="Prezzo accordo"
@@ -329,11 +364,18 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                   placeholder="Paese/Città"
                   id="new-paese-citta"
                 />
-                <input
-                  className="w-full rounded-md border px-2 py-1 text-xs"
-                  placeholder="Data shooting (ISO)"
-                  id="new-data-shooting"
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    className="w-full rounded-md border px-2 py-1 text-xs"
+                    type="date"
+                    id="new-data-shooting-date"
+                  />
+                  <input
+                    className="w-full rounded-md border px-2 py-1 text-xs"
+                    type="time"
+                    id="new-data-shooting-time"
+                  />
+                </div>
                 <textarea
                   className="w-full rounded-md border px-2 py-1 text-xs"
                   placeholder="Note commerciali"
@@ -360,17 +402,29 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                     onClick={() => {
                       const cliente = (document.getElementById("new-cliente") as HTMLInputElement)?.value;
                       const stato = (document.getElementById("new-stato") as HTMLSelectElement)?.value;
-                      const data_videocall = (document.getElementById("new-data-videocall") as HTMLInputElement)?.value || null;
+                      const videocallDate = (document.getElementById("new-data-videocall-date") as HTMLInputElement)?.value || "";
+                      const videocallTime = (document.getElementById("new-data-videocall-time") as HTMLInputElement)?.value || "";
+                      const data_videocall = videocallDate || videocallTime ? combineDateTime(videocallDate, videocallTime) : null;
                       const prezzo_accordo = Number((document.getElementById("new-prezzo") as HTMLInputElement)?.value) || null;
                       const durata_mesi = Number((document.getElementById("new-durata") as HTMLInputElement)?.value) || null;
                       const paese_citta = (document.getElementById("new-paese-citta") as HTMLInputElement)?.value || null;
-                      const data_shooting = (document.getElementById("new-data-shooting") as HTMLInputElement)?.value || null;
+                      const shootingDate = (document.getElementById("new-data-shooting-date") as HTMLInputElement)?.value || "";
+                      const shootingTime = (document.getElementById("new-data-shooting-time") as HTMLInputElement)?.value || "";
+                      const data_shooting = shootingDate || shootingTime ? combineDateTime(shootingDate, shootingTime) : null;
                       const note_commerciali = (document.getElementById("new-note-commerciali") as HTMLTextAreaElement)?.value || null;
                       const note_video = (document.getElementById("new-note-video") as HTMLTextAreaElement)?.value || null;
                       const note_social = (document.getElementById("new-note-social") as HTMLTextAreaElement)?.value || null;
                       const link_pubblicazione = (document.getElementById("new-link-pubblicazione") as HTMLInputElement)?.value || null;
                       if (!cliente) {
                         setError("Cliente obbligatorio");
+                        return;
+                      }
+                      if ((videocallDate || videocallTime) && !data_videocall) {
+                        setError("Per la videocall inserisci sia giorno che ora");
+                        return;
+                      }
+                      if ((shootingDate || shootingTime) && !data_shooting) {
+                        setError("Per lo shooting inserisci sia giorno che ora");
                         return;
                       }
                       onInsert({
@@ -447,12 +501,30 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                           <option value="in_prova">In prova</option>
                           <option value="perso">Perso</option>
                         </select>
-                        <input
-                          className="w-full rounded-md border px-2 py-1 text-xs"
-                          placeholder="Data videocall (ISO)"
-                          defaultValue={a.data_videocall ?? ""}
-                          onBlur={(e) => onSave(a.id, { data_videocall: e.target.value || null })}
-                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            className="w-full rounded-md border px-2 py-1 text-xs"
+                            type="date"
+                            defaultValue={splitDateTime(a.data_videocall).date}
+                            onBlur={(e) => {
+                              const date = e.target.value || "";
+                              const time = (document.activeElement?.parentElement?.querySelector("input[type='time']") as HTMLInputElement | null)?.value || splitDateTime(a.data_videocall).time;
+                              const combined = date || time ? combineDateTime(date, time) : null;
+                              onSave(a.id, { data_videocall: combined });
+                            }}
+                          />
+                          <input
+                            className="w-full rounded-md border px-2 py-1 text-xs"
+                            type="time"
+                            defaultValue={splitDateTime(a.data_videocall).time}
+                            onBlur={(e) => {
+                              const time = e.target.value || "";
+                              const date = (e.target.parentElement?.querySelector("input[type='date']") as HTMLInputElement | null)?.value || splitDateTime(a.data_videocall).date;
+                              const combined = date || time ? combineDateTime(date, time) : null;
+                              onSave(a.id, { data_videocall: combined });
+                            }}
+                          />
+                        </div>
                         <input
                           className="w-full rounded-md border px-2 py-1 text-xs"
                           placeholder="Prezzo accordo"
@@ -473,12 +545,30 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                           defaultValue={a.paese_citta ?? ""}
                           onBlur={(e) => onSave(a.id, { paese_citta: e.target.value || null })}
                         />
-                        <input
-                          className="w-full rounded-md border px-2 py-1 text-xs"
-                          placeholder="Data shooting (ISO)"
-                          defaultValue={a.data_shooting ?? ""}
-                          onBlur={(e) => onSave(a.id, { data_shooting: e.target.value || null })}
-                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            className="w-full rounded-md border px-2 py-1 text-xs"
+                            type="date"
+                            defaultValue={splitDateTime(a.data_shooting).date}
+                            onBlur={(e) => {
+                              const date = e.target.value || "";
+                              const time = (e.target.parentElement?.querySelector("input[type='time']") as HTMLInputElement | null)?.value || splitDateTime(a.data_shooting).time;
+                              const combined = date || time ? combineDateTime(date, time) : null;
+                              onSave(a.id, { data_shooting: combined });
+                            }}
+                          />
+                          <input
+                            className="w-full rounded-md border px-2 py-1 text-xs"
+                            type="time"
+                            defaultValue={splitDateTime(a.data_shooting).time}
+                            onBlur={(e) => {
+                              const time = e.target.value || "";
+                              const date = (e.target.parentElement?.querySelector("input[type='date']") as HTMLInputElement | null)?.value || splitDateTime(a.data_shooting).date;
+                              const combined = date || time ? combineDateTime(date, time) : null;
+                              onSave(a.id, { data_shooting: combined });
+                            }}
+                          />
+                        </div>
                         <textarea
                           className="w-full rounded-md border px-2 py-1 text-xs"
                           placeholder="Note commerciali"
@@ -513,10 +603,10 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                           ) : null}
                         </div>
                         <div className="text-xs text-zinc-600">
-                          Videocall: {a.data_videocall ?? "-"}
+                          Videocall: {formatDateTimeIt(a.data_videocall)}
                         </div>
                         <div className="text-xs text-zinc-600">
-                          Shooting: {a.data_shooting ?? "-"}
+                          Shooting: {formatDateTimeIt(a.data_shooting)}
                         </div>
                         <div className="text-xs text-zinc-600">
                           Paese/Città: {a.paese_citta ?? "-"}

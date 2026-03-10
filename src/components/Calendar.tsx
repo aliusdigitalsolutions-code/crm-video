@@ -3,18 +3,20 @@
 import { useState, useCallback } from "react";
 import { Calendar, dateFnsLocalizer, View, Views } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
-import { enUS } from "date-fns/locale";
+import { it } from "date-fns/locale";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { CalendarEvent } from "@/types/calendar";
 
 const locales = {
-  "en-US": enUS,
+  it,
 };
 
 const localizer = dateFnsLocalizer({
-  format,
-  parse,
-  startOfWeek,
+  format: (date: Date, fmt: string, culture?: string) =>
+    format(date, fmt, { locale: culture === "it" ? it : it }),
+  parse: (value: string, fmt: string, culture?: string) =>
+    parse(value, fmt, new Date(), { locale: culture === "it" ? it : it }),
+  startOfWeek: (date: Date, culture?: string) => startOfWeek(date, { locale: culture === "it" ? it : it }),
   getDay,
   locales,
 });
@@ -103,6 +105,7 @@ export default function CalendarComponent({
   return (
     <div className="h-[600px] bg-white rounded-lg border">
       <Calendar
+        culture="it"
         localizer={localizer}
         events={events}
         startAccessor="start"
