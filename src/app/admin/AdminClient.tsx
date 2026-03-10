@@ -57,6 +57,17 @@ function formatDateTimeIt(value: string | null) {
   });
 }
 
+const TIME_OPTIONS = (() => {
+  const times: string[] = [];
+  for (let h = 8; h <= 20; h++) {
+    for (let m = 0; m < 60; m += 30) {
+      if (h === 20 && m > 0) continue;
+      times.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+    }
+  }
+  return times;
+})();
+
 type Profile = {
   id: string;
   full_name: string;
@@ -229,12 +240,26 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                       id={`videomaker-paese-${a.id}`}
                       defaultValue={a.paese_citta ?? ""}
                     />
-                    <input
-                      className="w-full rounded-md border px-2 py-1 text-xs"
-                      placeholder="Data shooting (ISO)"
-                      id={`videomaker-data-${a.id}`}
-                      defaultValue={a.data_shooting ?? ""}
-                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        className="w-full rounded-md border px-2 py-1 text-xs"
+                        type="date"
+                        id={`videomaker-data-date-${a.id}`}
+                        defaultValue={splitDateTime(a.data_shooting).date}
+                      />
+                      <select
+                        className="w-full rounded-md border px-2 py-1 text-xs"
+                        id={`videomaker-data-time-${a.id}`}
+                        defaultValue={splitDateTime(a.data_shooting).time}
+                      >
+                        <option value="">Ora</option>
+                        {TIME_OPTIONS.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <textarea
                       className="w-full rounded-md border px-2 py-1 text-xs"
                       placeholder="Note video"
@@ -245,7 +270,9 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                       className="h-8 rounded-md bg-blue-600 px-3 text-xs text-white"
                       onClick={() => {
                         const paese_citta = (document.getElementById(`videomaker-paese-${a.id}`) as HTMLInputElement)?.value || null;
-                        const data_shooting = (document.getElementById(`videomaker-data-${a.id}`) as HTMLInputElement)?.value || null;
+                        const shootingDate = (document.getElementById(`videomaker-data-date-${a.id}`) as HTMLInputElement)?.value || "";
+                        const shootingTime = (document.getElementById(`videomaker-data-time-${a.id}`) as HTMLSelectElement)?.value || "";
+                        const data_shooting = shootingDate || shootingTime ? combineDateTime(shootingDate, shootingTime) : null;
                         const note_video = (document.getElementById(`videomaker-note-${a.id}`) as HTMLTextAreaElement)?.value || null;
                         onAssignVideomakerTask(a.id, paese_citta, data_shooting, note_video);
                       }}
@@ -341,11 +368,18 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                     type="date"
                     id="new-data-videocall-date"
                   />
-                  <input
+                  <select
                     className="w-full rounded-md border px-2 py-1 text-xs"
-                    type="time"
                     id="new-data-videocall-time"
-                  />
+                    defaultValue=""
+                  >
+                    <option value="">Ora</option>
+                    {TIME_OPTIONS.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <input
                   className="w-full rounded-md border px-2 py-1 text-xs"
@@ -370,11 +404,18 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                     type="date"
                     id="new-data-shooting-date"
                   />
-                  <input
+                  <select
                     className="w-full rounded-md border px-2 py-1 text-xs"
-                    type="time"
                     id="new-data-shooting-time"
-                  />
+                    defaultValue=""
+                  >
+                    <option value="">Ora</option>
+                    {TIME_OPTIONS.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <textarea
                   className="w-full rounded-md border px-2 py-1 text-xs"
@@ -403,13 +444,13 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                       const cliente = (document.getElementById("new-cliente") as HTMLInputElement)?.value;
                       const stato = (document.getElementById("new-stato") as HTMLSelectElement)?.value;
                       const videocallDate = (document.getElementById("new-data-videocall-date") as HTMLInputElement)?.value || "";
-                      const videocallTime = (document.getElementById("new-data-videocall-time") as HTMLInputElement)?.value || "";
+                      const videocallTime = (document.getElementById("new-data-videocall-time") as HTMLSelectElement)?.value || "";
                       const data_videocall = videocallDate || videocallTime ? combineDateTime(videocallDate, videocallTime) : null;
                       const prezzo_accordo = Number((document.getElementById("new-prezzo") as HTMLInputElement)?.value) || null;
                       const durata_mesi = Number((document.getElementById("new-durata") as HTMLInputElement)?.value) || null;
                       const paese_citta = (document.getElementById("new-paese-citta") as HTMLInputElement)?.value || null;
                       const shootingDate = (document.getElementById("new-data-shooting-date") as HTMLInputElement)?.value || "";
-                      const shootingTime = (document.getElementById("new-data-shooting-time") as HTMLInputElement)?.value || "";
+                      const shootingTime = (document.getElementById("new-data-shooting-time") as HTMLSelectElement)?.value || "";
                       const data_shooting = shootingDate || shootingTime ? combineDateTime(shootingDate, shootingTime) : null;
                       const note_commerciali = (document.getElementById("new-note-commerciali") as HTMLTextAreaElement)?.value || null;
                       const note_video = (document.getElementById("new-note-video") as HTMLTextAreaElement)?.value || null;
@@ -508,22 +549,28 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                             defaultValue={splitDateTime(a.data_videocall).date}
                             onBlur={(e) => {
                               const date = e.target.value || "";
-                              const time = (document.activeElement?.parentElement?.querySelector("input[type='time']") as HTMLInputElement | null)?.value || splitDateTime(a.data_videocall).time;
+                              const time = (e.target.parentElement?.querySelector("select") as HTMLSelectElement | null)?.value || splitDateTime(a.data_videocall).time;
                               const combined = date || time ? combineDateTime(date, time) : null;
                               onSave(a.id, { data_videocall: combined });
                             }}
                           />
-                          <input
+                          <select
                             className="w-full rounded-md border px-2 py-1 text-xs"
-                            type="time"
                             defaultValue={splitDateTime(a.data_videocall).time}
-                            onBlur={(e) => {
+                            onChange={(e) => {
                               const time = e.target.value || "";
                               const date = (e.target.parentElement?.querySelector("input[type='date']") as HTMLInputElement | null)?.value || splitDateTime(a.data_videocall).date;
                               const combined = date || time ? combineDateTime(date, time) : null;
                               onSave(a.id, { data_videocall: combined });
                             }}
-                          />
+                          >
+                            <option value="">Ora</option>
+                            {TIME_OPTIONS.map((t) => (
+                              <option key={t} value={t}>
+                                {t}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                         <input
                           className="w-full rounded-md border px-2 py-1 text-xs"
@@ -552,22 +599,28 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                             defaultValue={splitDateTime(a.data_shooting).date}
                             onBlur={(e) => {
                               const date = e.target.value || "";
-                              const time = (e.target.parentElement?.querySelector("input[type='time']") as HTMLInputElement | null)?.value || splitDateTime(a.data_shooting).time;
+                              const time = (e.target.parentElement?.querySelector("select") as HTMLSelectElement | null)?.value || splitDateTime(a.data_shooting).time;
                               const combined = date || time ? combineDateTime(date, time) : null;
                               onSave(a.id, { data_shooting: combined });
                             }}
                           />
-                          <input
+                          <select
                             className="w-full rounded-md border px-2 py-1 text-xs"
-                            type="time"
                             defaultValue={splitDateTime(a.data_shooting).time}
-                            onBlur={(e) => {
+                            onChange={(e) => {
                               const time = e.target.value || "";
                               const date = (e.target.parentElement?.querySelector("input[type='date']") as HTMLInputElement | null)?.value || splitDateTime(a.data_shooting).date;
                               const combined = date || time ? combineDateTime(date, time) : null;
                               onSave(a.id, { data_shooting: combined });
                             }}
-                          />
+                          >
+                            <option value="">Ora</option>
+                            {TIME_OPTIONS.map((t) => (
+                              <option key={t} value={t}>
+                                {t}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                         <textarea
                           className="w-full rounded-md border px-2 py-1 text-xs"
