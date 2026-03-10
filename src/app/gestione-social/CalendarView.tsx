@@ -21,6 +21,14 @@ const WEEKDAY_ORDER: Array<{
   { key: "domenica", label: "Ogni domenica", dayIndex: 0 },
 ];
 
+function parseWeekdayKeys(value: string | null) {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
 function getNextOccurrencesByWeekday(
   base: Date,
   targetDayIndex: number,
@@ -72,26 +80,31 @@ export default function SMMCalendarView({ initial }: { initial: Appointment[] })
   const events: CalendarEvent[] = appointments
     .filter((a) => Boolean(a.note_social) || Boolean(a.link_pubblicazione))
     .flatMap((a) => {
-      const weekday = WEEKDAY_ORDER.find((w) => w.key === (a.link_pubblicazione ?? ""));
+      const keys = parseWeekdayKeys(a.link_pubblicazione);
+      const weekdays = keys
+        .map((k) => WEEKDAY_ORDER.find((w) => w.key === k))
+        .filter(Boolean) as Array<(typeof WEEKDAY_ORDER)[number]>;
 
-      // If link_pubblicazione is a weekday key, generate weekly occurrences
-      if (weekday) {
-        const occurrences = getNextOccurrencesByWeekday(new Date(), weekday.dayIndex, 8, DEFAULT_TIME);
-        return occurrences.map((startDate) => {
-          const endDate = new Date(startDate.getTime() + 30 * 60 * 1000);
-          return {
-            id: `${a.id}-${startDate.toISOString()}`,
-            title: `Pubblicazione: ${a.cliente_nome}`,
-            start: startDate,
-            end: endDate,
-            resource: {
-              cliente_nome: a.cliente_nome,
-              stato: a.stato,
-              tipo: "pubblicazione" as const,
-              note: a.note_social || undefined,
-              full_data: a,
-            },
-          };
+      // If link_pubblicazione contains weekday keys, generate weekly occurrences
+      if (weekdays.length > 0) {
+        return weekdays.flatMap((weekday) => {
+          const occurrences = getNextOccurrencesByWeekday(new Date(), weekday.dayIndex, 8, DEFAULT_TIME);
+          return occurrences.map((startDate) => {
+            const endDate = new Date(startDate.getTime() + 30 * 60 * 1000);
+            return {
+              id: `${a.id}-${weekday.key}-${startDate.toISOString()}`,
+              title: `Pubblicazione: ${a.cliente_nome}`,
+              start: startDate,
+              end: endDate,
+              resource: {
+                cliente_nome: a.cliente_nome,
+                stato: a.stato,
+                tipo: "pubblicazione" as const,
+                note: a.note_social || undefined,
+                full_data: a,
+              },
+            };
+          });
         });
       }
 
@@ -179,12 +192,19 @@ export default function SMMCalendarView({ initial }: { initial: Appointment[] })
               )}
               
               {selectedFullData?.link_pubblicazione ? (() => {
-                const weekday = WEEKDAY_ORDER.find((w) => w.key === selectedFullData.link_pubblicazione);
-                if (weekday) {
+                const keys = parseWeekdayKeys(selectedFullData.link_pubblicazione);
+                const weekdays = keys
+                  .map((k) => WEEKDAY_ORDER.find((w) => w.key === k))
+                  .filter(Boolean) as Array<(typeof WEEKDAY_ORDER)[number]>;
+                if (weekdays.length > 0) {
                   return (
                     <div>
-                      <h4 className="font-medium text-sm">Giorno di pubblicazione:</h4>
-                      <p className="text-sm text-zinc-600">{weekday.label}</p>
+                      <h4 className="font-medium text-sm">Giorni di pubblicazione:</h4>
+                      <div className="text-sm text-zinc-600">
+                        {weekdays.map((w) => (
+                          <div key={w.key}>{w.label}</div>
+                        ))}
+                      </div>
                     </div>
                   );
                 }

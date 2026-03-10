@@ -106,9 +106,19 @@ export default function AdminClient(props: { initial: Appointment[] }) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftEdits, setDraftEdits] = useState<Record<string, Partial<Appointment>>>({});
+  const [smmDaysDraft, setSmmDaysDraft] = useState<Record<string, string[]>>({});
   const [showNewForm, setShowNewForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  function parseSmmDays(value: string | null) {
+    if (!value) return [];
+    const parts = value
+      .split(",")
+      .map((p) => p.trim())
+      .filter(Boolean);
+    return Array.from(new Set(parts));
+  }
 
   // Carica profili al mount
   useEffect(() => {
@@ -351,26 +361,107 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                       id={`smm-note-${a.id}`}
                       defaultValue={a.note_social ?? ""}
                     />
-                    <select
-                      className="w-full rounded-md border px-2 py-1 text-xs"
-                      id={`smm-day-${a.id}`}
-                      defaultValue={a.link_pubblicazione ?? ""}
-                    >
-                      <option value="">Giorno di pubblicazione</option>
-                      <option value="lunedi">Ogni lunedì</option>
-                      <option value="martedi">Ogni martedì</option>
-                      <option value="mercoledi">Ogni mercoledì</option>
-                      <option value="giovedi">Ogni giovedì</option>
-                      <option value="venerdi">Ogni venerdì</option>
-                      <option value="sabato">Ogni sabato</option>
-                      <option value="domenica">Ogni domenica</option>
-                    </select>
+                    <div className="space-y-2">
+                      {(smmDaysDraft[a.id] ?? parseSmmDays(a.link_pubblicazione) ?? [""]).length === 0 ? null : null}
+                      {(smmDaysDraft[a.id] ?? parseSmmDays(a.link_pubblicazione)).length === 0 ? (
+                        <div className="grid grid-cols-[1fr_auto] gap-2">
+                          <select
+                            className="w-full rounded-md border px-2 py-1 text-xs"
+                            value={""}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setSmmDaysDraft((prev) => ({
+                                ...prev,
+                                [a.id]: v ? [v] : [],
+                              }));
+                            }}
+                          >
+                            <option value="">Giorno di pubblicazione</option>
+                            <option value="lunedi">Ogni lunedì</option>
+                            <option value="martedi">Ogni martedì</option>
+                            <option value="mercoledi">Ogni mercoledì</option>
+                            <option value="giovedi">Ogni giovedì</option>
+                            <option value="venerdi">Ogni venerdì</option>
+                            <option value="sabato">Ogni sabato</option>
+                            <option value="domenica">Ogni domenica</option>
+                          </select>
+                          <button
+                            className="h-8 rounded-md border border-zinc-300 px-3 text-xs text-zinc-700"
+                            type="button"
+                            onClick={() =>
+                              setSmmDaysDraft((prev) => ({
+                                ...prev,
+                                [a.id]: [""],
+                              }))
+                            }
+                          >
+                            +
+                          </button>
+                        </div>
+                      ) : (
+                        (smmDaysDraft[a.id] ?? parseSmmDays(a.link_pubblicazione)).map((day, idx) => (
+                          <div key={`${a.id}-${idx}`} className="grid grid-cols-[1fr_auto] gap-2">
+                            <select
+                              className="w-full rounded-md border px-2 py-1 text-xs"
+                              value={day}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setSmmDaysDraft((prev) => {
+                                  const curr = prev[a.id] ?? parseSmmDays(a.link_pubblicazione);
+                                  const next = [...curr];
+                                  next[idx] = v;
+                                  return { ...prev, [a.id]: next };
+                                });
+                              }}
+                            >
+                              <option value="">Giorno di pubblicazione</option>
+                              <option value="lunedi">Ogni lunedì</option>
+                              <option value="martedi">Ogni martedì</option>
+                              <option value="mercoledi">Ogni mercoledì</option>
+                              <option value="giovedi">Ogni giovedì</option>
+                              <option value="venerdi">Ogni venerdì</option>
+                              <option value="sabato">Ogni sabato</option>
+                              <option value="domenica">Ogni domenica</option>
+                            </select>
+                            <button
+                              className="h-8 rounded-md border border-zinc-300 px-3 text-xs text-zinc-700"
+                              type="button"
+                              onClick={() =>
+                                setSmmDaysDraft((prev) => {
+                                  const curr = prev[a.id] ?? parseSmmDays(a.link_pubblicazione);
+                                  const next = curr.filter((_, i) => i !== idx);
+                                  return { ...prev, [a.id]: next };
+                                })
+                              }
+                              title="Rimuovi"
+                            >
+                              -
+                            </button>
+                          </div>
+                        ))
+                      )}
+                      <button
+                        className="h-8 rounded-md border border-zinc-300 px-3 text-xs text-zinc-700"
+                        type="button"
+                        onClick={() =>
+                          setSmmDaysDraft((prev) => {
+                            const curr = prev[a.id] ?? parseSmmDays(a.link_pubblicazione);
+                            return { ...prev, [a.id]: [...curr, ""] };
+                          })
+                        }
+                      >
+                        + Aggiungi giorno
+                      </button>
+                    </div>
                     <button
                       className="h-8 rounded-md bg-green-600 px-3 text-xs text-white"
                       onClick={() => {
                         const rawNote = (document.getElementById(`smm-note-${a.id}`) as HTMLTextAreaElement)?.value ?? "";
                         const note_social = rawNote.trim() ? rawNote.trim().slice(0, 500) : null;
-                        const giorno_pubblicazione = (document.getElementById(`smm-day-${a.id}`) as HTMLSelectElement)?.value || null;
+                        const days = (smmDaysDraft[a.id] ?? parseSmmDays(a.link_pubblicazione))
+                          .map((d) => d.trim())
+                          .filter(Boolean);
+                        const giorno_pubblicazione = days.length > 0 ? Array.from(new Set(days)).join(",") : null;
                         onAssignSMMTask(a.id, note_social, giorno_pubblicazione);
                       }}
                       disabled={loading}
