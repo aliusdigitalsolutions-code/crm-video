@@ -30,7 +30,7 @@ export default function SMMCalendarView({ initial }: { initial: Appointment[] })
 
   // Convert appointments to calendar events
   const events: CalendarEvent[] = appointments
-    .filter(a => a.link_pubblicazione)
+    .filter((a) => Boolean(a.note_social) || Boolean(a.link_pubblicazione))
     .map(a => {
       // Try to extract date from link or use creation date
       const eventDate = new Date(a.created_at);
@@ -44,7 +44,7 @@ export default function SMMCalendarView({ initial }: { initial: Appointment[] })
       
       return {
         id: a.id,
-        title: `Pubblicazione: ${a.cliente_nome}`,
+        title: a.link_pubblicazione ? `Pubblicazione: ${a.cliente_nome}` : `Task Social: ${a.cliente_nome}`,
         start: startDate,
         end: endDate,
         resource: {

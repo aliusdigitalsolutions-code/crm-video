@@ -53,14 +53,18 @@ export default function AdminClient(props: { initial: Appointment[] }) {
     setError(null);
     setLoading(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("appointments")
         .update(updates)
-        .eq("id", id);
+        .eq("id", id)
+        .select("*")
+        .single();
       if (error) throw error;
-      setAppointments((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, ...updates } : a)),
-      );
+      if (!data) {
+        throw new Error("Aggiornamento non riuscito (nessuna riga aggiornata). Verifica RLS/policy Supabase.");
+      }
+
+      setAppointments((prev) => prev.map((a) => (a.id === id ? (data as Appointment) : a)));
       setEditingId(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Update failed");
@@ -93,6 +97,10 @@ export default function AdminClient(props: { initial: Appointment[] }) {
   }
 
   async function onAssignVideomakerTask(id: string, paese_citta: string | null, data_shooting: string | null, note_video: string | null) {
+    if (!data_shooting) {
+      setError("Per assegnare al Videomaker serve una data shooting (formato ISO)");
+      return;
+    }
     await onSave(id, { paese_citta, data_shooting, note_video });
   }
 
@@ -104,14 +112,22 @@ export default function AdminClient(props: { initial: Appointment[] }) {
     setError(null);
     setLoading(true);
     try {
-      const { error } = await supabase.from("appointments").insert(newAppointment);
-      if (error) throw error;
-      // Ricarica tutti gli appuntamenti
-      const { data } = await supabase
+      const { data: inserted, error: insertError } = await supabase
         .from("appointments")
+        .insert(newAppointment)
         .select("*")
-        .order("created_at", { ascending: false });
-      setAppointments(data ?? []);
+        .single();
+      if (insertError) throw insertError;
+
+      if (inserted) {
+        setAppointments((prev) => [inserted as Appointment, ...prev]);
+      } else {
+        const { data } = await supabase
+          .from("appointments")
+          .select("*")
+          .order("created_at", { ascending: false });
+        setAppointments(data ?? []);
+      }
       setShowNewForm(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Insert failed");
