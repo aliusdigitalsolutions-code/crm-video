@@ -33,7 +33,7 @@ function splitDateTime(value: string | null) {
   if (!value) return { date: "", time: "" };
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return { date: "", time: "" };
-  const date = d.toISOString().slice(0, 10);
+  const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   return { date, time };
 }
@@ -41,7 +41,15 @@ function splitDateTime(value: string | null) {
 function combineDateTime(date: string, time: string) {
   if (!date) return null;
   if (!time) return null;
-  return `${date}T${time}:00`;
+
+  const [y, m, d] = date.split("-").map((v) => Number(v));
+  const [hh, mm] = time.split(":").map((v) => Number(v));
+  if (!y || !m || !d) return null;
+  if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
+
+  const local = new Date(y, m - 1, d, hh, mm, 0, 0);
+  if (Number.isNaN(local.getTime())) return null;
+  return local.toISOString();
 }
 
 function formatDateTimeIt(value: string | null) {
@@ -97,6 +105,7 @@ export default function AdminClient(props: { initial: Appointment[] }) {
   const [appointments, setAppointments] = useState(props.initial);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftEdits, setDraftEdits] = useState<Record<string, Partial<Appointment>>>({});
   const [showNewForm, setShowNewForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -127,11 +136,45 @@ export default function AdminClient(props: { initial: Appointment[] }) {
 
       setAppointments((prev) => prev.map((a) => (a.id === id ? (data as Appointment) : a)));
       setEditingId(null);
+      setDraftEdits((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
     } catch (e) {
       setError(formatSupabaseError(e));
     } finally {
       setLoading(false);
     }
+  }
+
+  function startEdit(a: Appointment) {
+    setEditingId(a.id);
+    setDraftEdits((prev) => ({
+      ...prev,
+      [a.id]: {
+        cliente_nome: a.cliente_nome,
+        stato: a.stato,
+        data_videocall: a.data_videocall,
+        prezzo_accordo: a.prezzo_accordo,
+        durata_mesi: a.durata_mesi,
+        paese_citta: a.paese_citta,
+        data_shooting: a.data_shooting,
+        note_commerciali: a.note_commerciali,
+        note_video: a.note_video,
+        note_social: a.note_social,
+        link_pubblicazione: a.link_pubblicazione,
+      },
+    }));
+  }
+
+  function cancelEdit(id: string) {
+    setEditingId(null);
+    setDraftEdits((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   }
 
   async function onDelete(id: string) {
@@ -511,7 +554,7 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                       <div className="flex gap-2">
                         <button
                           className="text-xs text-blue-600 underline"
-                          onClick={() => setEditingId(editingId === a.id ? null : a.id)}
+                          onClick={() => (editingId === a.id ? cancelEdit(a.id) : startEdit(a))}
                         >
                           {editingId === a.id ? "Annulla" : "Modifica"}
                         </button>
@@ -526,16 +569,33 @@ export default function AdminClient(props: { initial: Appointment[] }) {
 
                     {editingId === a.id ? (
                       <div className="space-y-2">
+                        {(() => {
+                          const d = draftEdits[a.id] ?? {};
+                          const vc = splitDateTime(typeof d.data_videocall === "string" ? d.data_videocall : a.data_videocall);
+                          const sh = splitDateTime(typeof d.data_shooting === "string" ? d.data_shooting : a.data_shooting);
+
+                          return (
+                            <>
                         <input
                           className="w-full rounded-md border px-2 py-1 text-xs"
                           placeholder="Cliente"
-                          defaultValue={a.cliente_nome}
-                          onBlur={(e) => onSave(a.id, { cliente_nome: e.target.value })}
+                          value={typeof d.cliente_nome === "string" ? d.cliente_nome : a.cliente_nome}
+                          onChange={(e) =>
+                            setDraftEdits((prev) => ({
+                              ...prev,
+                              [a.id]: { ...prev[a.id], cliente_nome: e.target.value },
+                            }))
+                          }
                         />
                         <select
                           className="w-full rounded-md border px-2 py-1 text-xs"
-                          defaultValue={a.stato}
-                          onChange={(e) => onSave(a.id, { stato: e.target.value })}
+                          value={typeof d.stato === "string" ? d.stato : a.stato}
+                          onChange={(e) =>
+                            setDraftEdits((prev) => ({
+                              ...prev,
+                              [a.id]: { ...prev[a.id], stato: e.target.value },
+                            }))
+                          }
                         >
                           <option value="potenziale">Potenziale</option>
                           <option value="chiuso">Chiuso</option>
@@ -546,22 +606,28 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                           <input
                             className="w-full rounded-md border px-2 py-1 text-xs"
                             type="date"
-                            defaultValue={splitDateTime(a.data_videocall).date}
-                            onBlur={(e) => {
+                            value={vc.date}
+                            onChange={(e) => {
                               const date = e.target.value || "";
-                              const time = (e.target.parentElement?.querySelector("select") as HTMLSelectElement | null)?.value || splitDateTime(a.data_videocall).time;
+                              const time = vc.time;
                               const combined = date || time ? combineDateTime(date, time) : null;
-                              onSave(a.id, { data_videocall: combined });
+                              setDraftEdits((prev) => ({
+                                ...prev,
+                                [a.id]: { ...prev[a.id], data_videocall: combined },
+                              }));
                             }}
                           />
                           <select
                             className="w-full rounded-md border px-2 py-1 text-xs"
-                            defaultValue={splitDateTime(a.data_videocall).time}
+                            value={vc.time}
                             onChange={(e) => {
                               const time = e.target.value || "";
-                              const date = (e.target.parentElement?.querySelector("input[type='date']") as HTMLInputElement | null)?.value || splitDateTime(a.data_videocall).date;
+                              const date = vc.date;
                               const combined = date || time ? combineDateTime(date, time) : null;
-                              onSave(a.id, { data_videocall: combined });
+                              setDraftEdits((prev) => ({
+                                ...prev,
+                                [a.id]: { ...prev[a.id], data_videocall: combined },
+                              }));
                             }}
                           >
                             <option value="">Ora</option>
@@ -576,42 +642,63 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                           className="w-full rounded-md border px-2 py-1 text-xs"
                           placeholder="Prezzo accordo"
                           type="number"
-                          defaultValue={a.prezzo_accordo ?? ""}
-                          onBlur={(e) => onSave(a.id, { prezzo_accordo: Number(e.target.value) || null })}
+                          value={typeof d.prezzo_accordo === "number" ? String(d.prezzo_accordo) : a.prezzo_accordo ? String(a.prezzo_accordo) : ""}
+                          onChange={(e) =>
+                            setDraftEdits((prev) => ({
+                              ...prev,
+                              [a.id]: { ...prev[a.id], prezzo_accordo: Number(e.target.value) || null },
+                            }))
+                          }
                         />
                         <input
                           className="w-full rounded-md border px-2 py-1 text-xs"
                           placeholder="Durata mesi"
                           type="number"
-                          defaultValue={a.durata_mesi ?? ""}
-                          onBlur={(e) => onSave(a.id, { durata_mesi: Number(e.target.value) || null })}
+                          value={typeof d.durata_mesi === "number" ? String(d.durata_mesi) : a.durata_mesi ? String(a.durata_mesi) : ""}
+                          onChange={(e) =>
+                            setDraftEdits((prev) => ({
+                              ...prev,
+                              [a.id]: { ...prev[a.id], durata_mesi: Number(e.target.value) || null },
+                            }))
+                          }
                         />
                         <input
                           className="w-full rounded-md border px-2 py-1 text-xs"
                           placeholder="Paese/Città"
-                          defaultValue={a.paese_citta ?? ""}
-                          onBlur={(e) => onSave(a.id, { paese_citta: e.target.value || null })}
+                          value={typeof d.paese_citta === "string" ? d.paese_citta : a.paese_citta ?? ""}
+                          onChange={(e) =>
+                            setDraftEdits((prev) => ({
+                              ...prev,
+                              [a.id]: { ...prev[a.id], paese_citta: e.target.value || null },
+                            }))
+                          }
                         />
                         <div className="grid grid-cols-2 gap-2">
                           <input
                             className="w-full rounded-md border px-2 py-1 text-xs"
                             type="date"
-                            defaultValue={splitDateTime(a.data_shooting).date}
-                            onBlur={(e) => {
+                            value={sh.date}
+                            onChange={(e) => {
                               const date = e.target.value || "";
-                              const time = (e.target.parentElement?.querySelector("select") as HTMLSelectElement | null)?.value || splitDateTime(a.data_shooting).time;
+                              const time = sh.time;
                               const combined = date || time ? combineDateTime(date, time) : null;
-                              onSave(a.id, { data_shooting: combined });
+                              setDraftEdits((prev) => ({
+                                ...prev,
+                                [a.id]: { ...prev[a.id], data_shooting: combined },
+                              }));
                             }}
                           />
                           <select
                             className="w-full rounded-md border px-2 py-1 text-xs"
-                            defaultValue={splitDateTime(a.data_shooting).time}
+                            value={sh.time}
                             onChange={(e) => {
                               const time = e.target.value || "";
-                              const date = (e.target.parentElement?.querySelector("input[type='date']") as HTMLInputElement | null)?.value || splitDateTime(a.data_shooting).date;
+                              const date = sh.date;
                               const combined = date || time ? combineDateTime(date, time) : null;
-                              onSave(a.id, { data_shooting: combined });
+                              setDraftEdits((prev) => ({
+                                ...prev,
+                                [a.id]: { ...prev[a.id], data_shooting: combined },
+                              }));
                             }}
                           >
                             <option value="">Ora</option>
@@ -625,27 +712,66 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                         <textarea
                           className="w-full rounded-md border px-2 py-1 text-xs"
                           placeholder="Note commerciali"
-                          defaultValue={a.note_commerciali ?? ""}
-                          onBlur={(e) => onSave(a.id, { note_commerciali: e.target.value || null })}
+                          value={typeof d.note_commerciali === "string" ? d.note_commerciali : a.note_commerciali ?? ""}
+                          onChange={(e) =>
+                            setDraftEdits((prev) => ({
+                              ...prev,
+                              [a.id]: { ...prev[a.id], note_commerciali: e.target.value || null },
+                            }))
+                          }
                         />
                         <textarea
                           className="w-full rounded-md border px-2 py-1 text-xs"
                           placeholder="Note video"
-                          defaultValue={a.note_video ?? ""}
-                          onBlur={(e) => onSave(a.id, { note_video: e.target.value || null })}
+                          value={typeof d.note_video === "string" ? d.note_video : a.note_video ?? ""}
+                          onChange={(e) =>
+                            setDraftEdits((prev) => ({
+                              ...prev,
+                              [a.id]: { ...prev[a.id], note_video: e.target.value || null },
+                            }))
+                          }
                         />
                         <textarea
                           className="w-full rounded-md border px-2 py-1 text-xs"
                           placeholder="Note social"
-                          defaultValue={a.note_social ?? ""}
-                          onBlur={(e) => onSave(a.id, { note_social: e.target.value || null })}
+                          value={typeof d.note_social === "string" ? d.note_social : a.note_social ?? ""}
+                          onChange={(e) =>
+                            setDraftEdits((prev) => ({
+                              ...prev,
+                              [a.id]: { ...prev[a.id], note_social: e.target.value || null },
+                            }))
+                          }
                         />
                         <input
                           className="w-full rounded-md border px-2 py-1 text-xs"
                           placeholder="Link pubblicazione"
-                          defaultValue={a.link_pubblicazione ?? ""}
-                          onBlur={(e) => onSave(a.id, { link_pubblicazione: e.target.value || null })}
+                          value={typeof d.link_pubblicazione === "string" ? d.link_pubblicazione : a.link_pubblicazione ?? ""}
+                          onChange={(e) =>
+                            setDraftEdits((prev) => ({
+                              ...prev,
+                              [a.id]: { ...prev[a.id], link_pubblicazione: e.target.value || null },
+                            }))
+                          }
                         />
+                        <div className="flex gap-2 pt-2">
+                          <button
+                            className="h-8 rounded-md bg-black px-3 text-xs text-white"
+                            onClick={() => onSave(a.id, draftEdits[a.id] ?? {})}
+                            disabled={loading}
+                          >
+                            Salva
+                          </button>
+                          <button
+                            className="h-8 rounded-md border border-zinc-300 px-3 text-xs text-zinc-700"
+                            onClick={() => cancelEdit(a.id)}
+                            disabled={loading}
+                          >
+                            Annulla
+                          </button>
+                        </div>
+                            </>
+                          );
+                        })()}
                       </div>
                     ) : (
                       <>
