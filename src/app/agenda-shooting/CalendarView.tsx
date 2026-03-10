@@ -23,6 +23,13 @@ export default function VideomakerCalendarView({ initial }: { initial: Appointme
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
+  const selectedFullData = (selectedEvent?.resource.full_data ?? null) as
+    | {
+        paese_citta?: string | null;
+        file_contratto_url?: string | null;
+      }
+    | null;
+
   // Convert appointments to calendar events
   const events: CalendarEvent[] = appointments
     .filter(a => a.data_shooting)
@@ -93,12 +100,12 @@ export default function VideomakerCalendarView({ initial }: { initial: Appointme
                 <BadgeNeutral>{selectedEvent.resource.stato}</BadgeNeutral>
               </div>
               
-              {selectedEvent.resource.full_data.paese_citta && (
+              {selectedFullData?.paese_citta ? (
                 <div>
                   <h4 className="font-medium text-sm">Luogo:</h4>
-                  <p className="text-sm text-zinc-600">{selectedEvent.resource.full_data.paese_citta}</p>
+                  <p className="text-sm text-zinc-600">{selectedFullData.paese_citta}</p>
                 </div>
-              )}
+              ) : null}
               
               {selectedEvent.resource.note && (
                 <div>
@@ -107,10 +114,10 @@ export default function VideomakerCalendarView({ initial }: { initial: Appointme
                 </div>
               )}
               
-              {selectedEvent.resource.full_data.file_contratto_url && (
+              {selectedFullData?.file_contratto_url ? (
                 <div>
                   <a
-                    href={selectedEvent.resource.full_data.file_contratto_url}
+                    href={selectedFullData.file_contratto_url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-blue-600 underline"
@@ -118,7 +125,7 @@ export default function VideomakerCalendarView({ initial }: { initial: Appointme
                     Apri contratto
                   </a>
                 </div>
-              )}
+              ) : null}
               
               <div className="flex gap-2 pt-2">
                 <button

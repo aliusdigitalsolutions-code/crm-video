@@ -23,6 +23,12 @@ export default function CalendarView({ initial }: { initial: Appointment[] }) {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
+  const selectedFullData = (selectedEvent?.resource.full_data ?? null) as
+    | {
+        prezzo_accordo?: number | null;
+      }
+    | null;
+
   // Convert appointments to calendar events
   const events: CalendarEvent[] = appointments
     .filter(a => a.data_videocall)
@@ -139,9 +145,9 @@ export default function CalendarView({ initial }: { initial: Appointment[] }) {
               
               <div className="flex gap-2">
                 <BadgeNeutral>{selectedEvent.resource.stato}</BadgeNeutral>
-                {selectedEvent.resource.full_data.prezzo_accordo && (
-                  <BadgeSuccess>€{selectedEvent.resource.full_data.prezzo_accordo}</BadgeSuccess>
-                )}
+                {selectedFullData?.prezzo_accordo ? (
+                  <BadgeSuccess>€{selectedFullData.prezzo_accordo}</BadgeSuccess>
+                ) : null}
               </div>
               
               {selectedEvent.resource.note && (
