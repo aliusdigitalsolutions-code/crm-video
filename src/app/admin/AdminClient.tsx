@@ -7,6 +7,28 @@ import { BadgeSuccess, BadgeNeutral, BadgeWarning } from "@/components/ui/Badge"
 import { Toast } from "@/components/ui/Toast";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
+function formatSupabaseError(e: unknown) {
+  if (!e) return "Errore sconosciuto";
+  if (e instanceof Error) return e.message;
+  if (typeof e === "object") {
+    const anyE = e as {
+      message?: unknown;
+      code?: unknown;
+      details?: unknown;
+      hint?: unknown;
+    };
+    const msg = typeof anyE.message === "string" ? anyE.message : "";
+    const code = typeof anyE.code === "string" ? anyE.code : "";
+    const details = typeof anyE.details === "string" ? anyE.details : "";
+    const hint = typeof anyE.hint === "string" ? anyE.hint : "";
+    const extra = [code && `code=${code}`, details && `details=${details}`, hint && `hint=${hint}`]
+      .filter(Boolean)
+      .join(" | ");
+    return extra ? `${msg || "Errore"} (${extra})` : msg || "Errore";
+  }
+  return String(e);
+}
+
 type Profile = {
   id: string;
   full_name: string;
@@ -67,7 +89,7 @@ export default function AdminClient(props: { initial: Appointment[] }) {
       setAppointments((prev) => prev.map((a) => (a.id === id ? (data as Appointment) : a)));
       setEditingId(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Update failed");
+      setError(formatSupabaseError(e));
     } finally {
       setLoading(false);
     }
@@ -82,7 +104,7 @@ export default function AdminClient(props: { initial: Appointment[] }) {
       if (error) throw error;
       setAppointments((prev) => prev.filter((a) => a.id !== id));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Delete failed");
+      setError(formatSupabaseError(e));
     } finally {
       setLoading(false);
     }
@@ -130,7 +152,7 @@ export default function AdminClient(props: { initial: Appointment[] }) {
       }
       setShowNewForm(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Insert failed");
+      setError(formatSupabaseError(e));
     } finally {
       setLoading(false);
     }

@@ -49,7 +49,7 @@ export default function CalendarComponent({
   events = [], 
   onEventClick, 
   onDateClick,
-  view = Views.MONTH,
+  view = Views.DAY,
   onView,
   date = new Date(),
   onNavigate 
@@ -95,6 +95,11 @@ export default function CalendarComponent({
     [onNavigate]
   );
 
+  const minTime = new Date(currentDate);
+  minTime.setHours(8, 0, 0, 0);
+  const maxTime = new Date(currentDate);
+  maxTime.setHours(20, 0, 0, 0);
+
   return (
     <div className="h-[600px] bg-white rounded-lg border">
       <Calendar
@@ -111,6 +116,10 @@ export default function CalendarComponent({
         onView={handleViewChange}
         date={currentDate}
         onNavigate={handleNavigate}
+        step={30}
+        timeslots={2}
+        min={minTime}
+        max={maxTime}
         views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
         messages={{
           month: "Mese",
