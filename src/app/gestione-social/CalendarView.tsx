@@ -7,6 +7,44 @@ import { BadgeNeutral } from "@/components/ui/Badge";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { CalendarEvent } from "@/types/calendar";
 
+const WEEKDAY_ORDER: Array<{
+  key: string;
+  label: string;
+  dayIndex: number; // 0=Sunday..6=Saturday
+}> = [
+  { key: "lunedi", label: "Ogni lunedì", dayIndex: 1 },
+  { key: "martedi", label: "Ogni martedì", dayIndex: 2 },
+  { key: "mercoledi", label: "Ogni mercoledì", dayIndex: 3 },
+  { key: "giovedi", label: "Ogni giovedì", dayIndex: 4 },
+  { key: "venerdi", label: "Ogni venerdì", dayIndex: 5 },
+  { key: "sabato", label: "Ogni sabato", dayIndex: 6 },
+  { key: "domenica", label: "Ogni domenica", dayIndex: 0 },
+];
+
+function getNextOccurrencesByWeekday(
+  base: Date,
+  targetDayIndex: number,
+  weeks: number,
+  time: { hh: number; mm: number }
+) {
+  const occurrences: Date[] = [];
+  const start = new Date(base);
+  start.setHours(0, 0, 0, 0);
+
+  const currentDay = start.getDay();
+  const delta = (targetDayIndex - currentDay + 7) % 7;
+  const first = new Date(start);
+  first.setDate(first.getDate() + delta);
+  first.setHours(time.hh, time.mm, 0, 0);
+
+  for (let i = 0; i < weeks; i++) {
+    const d = new Date(first);
+    d.setDate(first.getDate() + i * 7);
+    occurrences.push(d);
+  }
+  return occurrences;
+}
+
 type Appointment = {
   id: string;
   cliente_nome: string;
@@ -28,33 +66,55 @@ export default function SMMCalendarView({ initial }: { initial: Appointment[] })
       }
     | null;
 
+  const DEFAULT_TIME = { hh: 10, mm: 0 };
+
   // Convert appointments to calendar events
   const events: CalendarEvent[] = appointments
     .filter((a) => Boolean(a.note_social) || Boolean(a.link_pubblicazione))
-    .map(a => {
-      // Try to extract date from link or use creation date
-      const eventDate = new Date(a.created_at);
-      if (a.link_pubblicazione) {
-        // If link contains date patterns, we could parse them here
-        // For now, use creation date as publication date
+    .flatMap((a) => {
+      const weekday = WEEKDAY_ORDER.find((w) => w.key === (a.link_pubblicazione ?? ""));
+
+      // If link_pubblicazione is a weekday key, generate weekly occurrences
+      if (weekday) {
+        const occurrences = getNextOccurrencesByWeekday(new Date(), weekday.dayIndex, 8, DEFAULT_TIME);
+        return occurrences.map((startDate) => {
+          const endDate = new Date(startDate.getTime() + 30 * 60 * 1000);
+          return {
+            id: `${a.id}-${startDate.toISOString()}`,
+            title: `Pubblicazione: ${a.cliente_nome}`,
+            start: startDate,
+            end: endDate,
+            resource: {
+              cliente_nome: a.cliente_nome,
+              stato: a.stato,
+              tipo: "pubblicazione" as const,
+              note: a.note_social || undefined,
+              full_data: a,
+            },
+          };
+        });
       }
-      
+
+      // Otherwise fallback: use created_at as a single task marker
+      const eventDate = new Date(a.created_at);
       const startDate = eventDate;
-      const endDate = new Date(startDate.getTime() + 30 * 60 * 1000); // 30 minutes duration
-      
-      return {
-        id: a.id,
-        title: a.link_pubblicazione ? `Pubblicazione: ${a.cliente_nome}` : `Task Social: ${a.cliente_nome}`,
-        start: startDate,
-        end: endDate,
-        resource: {
-          cliente_nome: a.cliente_nome,
-          stato: a.stato,
-          tipo: "pubblicazione" as const,
-          note: a.note_social || undefined,
-          full_data: a,
+      const endDate = new Date(startDate.getTime() + 30 * 60 * 1000);
+
+      return [
+        {
+          id: a.id,
+          title: a.link_pubblicazione ? `Pubblicazione: ${a.cliente_nome}` : `Task Social: ${a.cliente_nome}`,
+          start: startDate,
+          end: endDate,
+          resource: {
+            cliente_nome: a.cliente_nome,
+            stato: a.stato,
+            tipo: "pubblicazione" as const,
+            note: a.note_social || undefined,
+            full_data: a,
+          },
         },
-      };
+      ];
     });
 
   // Always show calendar even if no events
@@ -97,7 +157,13 @@ export default function SMMCalendarView({ initial }: { initial: Appointment[] })
               <div>
                 <h3 className="font-semibold">{selectedEvent.resource.cliente_nome}</h3>
                 <p className="text-sm text-zinc-600">
-                  Pubblicato il {selectedEvent.start.toLocaleDateString()}
+                  {selectedEvent.start.toLocaleString("it-IT", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
                 </p>
               </div>
               
@@ -112,19 +178,33 @@ export default function SMMCalendarView({ initial }: { initial: Appointment[] })
                 </div>
               )}
               
-              {selectedFullData?.link_pubblicazione ? (
-                <div>
-                  <h4 className="font-medium text-sm">Link pubblicazione:</h4>
-                  <a
-                    href={selectedFullData.link_pubblicazione}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-blue-600 underline block"
-                  >
-                    Apri pubblicazione
-                  </a>
-                </div>
-              ) : null}
+              {selectedFullData?.link_pubblicazione ? (() => {
+                const weekday = WEEKDAY_ORDER.find((w) => w.key === selectedFullData.link_pubblicazione);
+                if (weekday) {
+                  return (
+                    <div>
+                      <h4 className="font-medium text-sm">Giorno di pubblicazione:</h4>
+                      <p className="text-sm text-zinc-600">{weekday.label}</p>
+                    </div>
+                  );
+                }
+                if (selectedFullData.link_pubblicazione.startsWith("http")) {
+                  return (
+                    <div>
+                      <h4 className="font-medium text-sm">Link pubblicazione:</h4>
+                      <a
+                        href={selectedFullData.link_pubblicazione}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 underline block"
+                      >
+                        Apri pubblicazione
+                      </a>
+                    </div>
+                  );
+                }
+                return null;
+              })() : null}
               
               <div className="flex gap-2 pt-2">
                 <button

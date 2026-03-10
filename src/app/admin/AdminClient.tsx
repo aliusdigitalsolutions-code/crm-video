@@ -351,18 +351,27 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                       id={`smm-note-${a.id}`}
                       defaultValue={a.note_social ?? ""}
                     />
-                    <input
+                    <select
                       className="w-full rounded-md border px-2 py-1 text-xs"
-                      placeholder="Link pubblicazione"
-                      id={`smm-link-${a.id}`}
+                      id={`smm-day-${a.id}`}
                       defaultValue={a.link_pubblicazione ?? ""}
-                    />
+                    >
+                      <option value="">Giorno di pubblicazione</option>
+                      <option value="lunedi">Ogni lunedì</option>
+                      <option value="martedi">Ogni martedì</option>
+                      <option value="mercoledi">Ogni mercoledì</option>
+                      <option value="giovedi">Ogni giovedì</option>
+                      <option value="venerdi">Ogni venerdì</option>
+                      <option value="sabato">Ogni sabato</option>
+                      <option value="domenica">Ogni domenica</option>
+                    </select>
                     <button
                       className="h-8 rounded-md bg-green-600 px-3 text-xs text-white"
                       onClick={() => {
-                        const note_social = (document.getElementById(`smm-note-${a.id}`) as HTMLTextAreaElement)?.value || null;
-                        const link_pubblicazione = (document.getElementById(`smm-link-${a.id}`) as HTMLInputElement)?.value || null;
-                        onAssignSMMTask(a.id, note_social, link_pubblicazione);
+                        const rawNote = (document.getElementById(`smm-note-${a.id}`) as HTMLTextAreaElement)?.value ?? "";
+                        const note_social = rawNote.trim() ? rawNote.trim().slice(0, 500) : null;
+                        const giorno_pubblicazione = (document.getElementById(`smm-day-${a.id}`) as HTMLSelectElement)?.value || null;
+                        onAssignSMMTask(a.id, note_social, giorno_pubblicazione);
                       }}
                       disabled={loading}
                     >
