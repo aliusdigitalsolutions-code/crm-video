@@ -29,6 +29,58 @@ function createSupabaseRouteClient(request: NextRequest) {
   return { supabase, response };
 }
 
+async function getAuthedUserRole(request: NextRequest) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anonKey) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  }
+
+  const { supabase, response } = createSupabaseRouteClient(request);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    return { user, role: profile?.role ?? null, response };
+  }
+
+  const authHeader = request.headers.get("authorization") || "";
+  const token = authHeader.toLowerCase().startsWith("bearer ") ? authHeader.slice(7).trim() : "";
+  if (!token) {
+    return { user: null, role: null, response };
+  }
+
+  const supabaseWithToken = createClient(url, anonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+
+  const {
+    data: { user: tokenUser },
+  } = await supabaseWithToken.auth.getUser();
+
+  if (!tokenUser) {
+    return { user: null, role: null, response };
+  }
+
+  const { data: profile } = await supabaseWithToken
+    .from("profiles")
+    .select("role")
+    .eq("id", tokenUser.id)
+    .maybeSingle();
+
+  return { user: tokenUser, role: profile?.role ?? null, response };
+}
+
 function withCookies(base: NextResponse, cookieSource: NextResponse) {
   cookieSource.cookies.getAll().forEach((c) => {
     base.cookies.set(c);
@@ -93,21 +145,14 @@ type AppointmentInsert = {
 
 export async function GET(request: NextRequest) {
   try {
-    const { supabase, response } = createSupabaseRouteClient(request);
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
+    const { user, role, response } = await getAuthedUserRole(request);
+    if (!user) {
       const payload = { ok: false, authenticated: false };
       const base = wantsHtml(request) ? htmlResponse(payload) : NextResponse.json(payload);
       return withCookies(base, response);
     }
 
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-
-    const payload = { ok: true, authenticated: true, userId: user.id, role: profile?.role ?? null };
+    const payload = { ok: true, authenticated: true, userId: user.id, role };
     const base = wantsHtml(request) ? htmlResponse(payload) : NextResponse.json(payload);
     return withCookies(base, response);
   } catch (e) {
@@ -125,28 +170,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing appointment.cliente_nome" }, { status: 400 });
     }
 
-    const { supabase, response } = createSupabaseRouteClient(request);
+    const { user, role, response } = await getAuthedUserRole(request);
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
+    if (!user) {
       return withCookies(NextResponse.json({ error: "Not authenticated" }, { status: 401 }), response);
     }
 
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (profileError) {
-      return withCookies(NextResponse.json({ error: profileError.message }, { status: 500 }), response);
-    }
-
-    if (profile?.role !== "admin") {
+    if (role !== "admin") {
       return withCookies(NextResponse.json({ error: "Not allowed" }, { status: 403 }), response);
     }
 

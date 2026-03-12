@@ -226,6 +226,10 @@ export default function AdminClient(props: { initial: Appointment[] }) {
     setError(null);
     setLoading(true);
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
 
@@ -233,6 +237,7 @@ export default function AdminClient(props: { initial: Appointment[] }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
         },
         body: JSON.stringify({
           appointment: newAppointment,

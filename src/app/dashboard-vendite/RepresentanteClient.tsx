@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type Appointment = {
   id: string;
@@ -16,6 +17,7 @@ type Appointment = {
 };
 
 export default function RepresentanteClient(props: { initial: Appointment[] }) {
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [items, setItems] = useState<Appointment[]>(props.initial);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, Partial<Appointment>>>({});
@@ -48,6 +50,10 @@ export default function RepresentanteClient(props: { initial: Appointment[] }) {
     setError(null);
     setLoadingId(id);
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       const updates = draft[id] ?? {};
       const payload: {
         cliente_nome?: string;
@@ -67,6 +73,7 @@ export default function RepresentanteClient(props: { initial: Appointment[] }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
         },
         body: JSON.stringify({
           appointmentId: id,
