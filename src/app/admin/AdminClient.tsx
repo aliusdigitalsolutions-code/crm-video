@@ -226,6 +226,9 @@ export default function AdminClient(props: { initial: Appointment[] }) {
     setError(null);
     setLoading(true);
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
       const res = await fetch("/api/admin-insert-appointment", {
         method: "POST",
         headers: {
@@ -234,7 +237,8 @@ export default function AdminClient(props: { initial: Appointment[] }) {
         body: JSON.stringify({
           appointment: newAppointment,
         }),
-      });
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeoutId));
 
       const json = (await res.json()) as
         | { success: true; appointment: Appointment }
@@ -590,7 +594,10 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                 <div className="flex gap-2">
                   <button
                     className="h-8 rounded-md bg-black px-3 text-xs text-white"
-                    onClick={() => {
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       const cliente = (document.getElementById("new-cliente") as HTMLInputElement)?.value;
                       const stato = (document.getElementById("new-stato") as HTMLSelectElement)?.value;
                       const videocallDate = (document.getElementById("new-data-videocall-date") as HTMLInputElement)?.value || "";
@@ -618,7 +625,7 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                         setError("Per lo shooting inserisci sia giorno che ora");
                         return;
                       }
-                      onInsert({
+                      void onInsert({
                         cliente_nome: cliente,
                         stato,
                         data_videocall,
