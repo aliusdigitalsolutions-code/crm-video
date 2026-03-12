@@ -31,11 +31,9 @@ function formatSupabaseError(e: unknown) {
 
 function splitDateTime(value: string | null) {
   if (!value) return { date: "", time: "" };
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return { date: "", time: "" };
-  const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  return { date, time };
+  const m = value.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+  if (!m) return { date: "", time: "" };
+  return { date: m[1] ?? "", time: m[2] ?? "" };
 }
 
 function combineDateTime(date: string, time: string) {
@@ -133,6 +131,17 @@ export default function AdminClient(props: {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftEdits, setDraftEdits] = useState<Record<string, Partial<Appointment>>>({});
+  const [draftDateTimes, setDraftDateTimes] = useState<
+    Record<
+      string,
+      {
+        vcDate: string;
+        vcTime: string;
+        shDate: string;
+        shTime: string;
+      }
+    >
+  >({});
   const [smmDaysDraft, setSmmDaysDraft] = useState<Record<string, string[]>>({});
   const [showNewForm, setShowNewForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -160,6 +169,17 @@ export default function AdminClient(props: {
     setError(null);
     setLoading(true);
     try {
+      const dt = draftDateTimes[id];
+      const updatesWithDateTimes: Partial<Appointment> = { ...updates };
+      if (dt) {
+        if (dt.vcDate || dt.vcTime) {
+          updatesWithDateTimes.data_videocall = combineDateTime(dt.vcDate, dt.vcTime);
+        }
+        if (dt.shDate || dt.shTime) {
+          updatesWithDateTimes.data_shooting = combineDateTime(dt.shDate, dt.shTime);
+        }
+      }
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -176,7 +196,7 @@ export default function AdminClient(props: {
         },
         body: JSON.stringify({
           appointmentId: id,
-          updates,
+          updates: updatesWithDateTimes,
         }),
       });
 
@@ -197,6 +217,11 @@ export default function AdminClient(props: {
 
       setAppointments((prev) => prev.map((a) => (a.id === id ? (data as Appointment) : a)));
       setEditingId(null);
+      setDraftDateTimes((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       setDraftEdits((prev) => {
         const next = { ...prev };
         delete next[id];
@@ -211,16 +236,25 @@ export default function AdminClient(props: {
 
   function startEdit(a: Appointment) {
     setEditingId(a.id);
+    const vc = splitDateTime(a.data_videocall);
+    const sh = splitDateTime(a.data_shooting);
+    setDraftDateTimes((prev) => ({
+      ...prev,
+      [a.id]: {
+        vcDate: vc.date,
+        vcTime: vc.time,
+        shDate: sh.date,
+        shTime: sh.time,
+      },
+    }));
     setDraftEdits((prev) => ({
       ...prev,
       [a.id]: {
         cliente_nome: a.cliente_nome,
         stato: a.stato,
-        data_videocall: a.data_videocall,
         prezzo_accordo: a.prezzo_accordo,
         durata_mesi: a.durata_mesi,
         paese_citta: a.paese_citta,
-        data_shooting: a.data_shooting,
         note_commerciali: a.note_commerciali,
         note_video: a.note_video,
         note_social: a.note_social,
@@ -231,6 +265,11 @@ export default function AdminClient(props: {
 
   function cancelEdit(id: string) {
     setEditingId(null);
+    setDraftDateTimes((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     setDraftEdits((prev) => {
       const next = { ...prev };
       delete next[id];
@@ -627,8 +666,12 @@ export default function AdminClient(props: {
                       <div className="space-y-2">
                         {(() => {
                           const d = draftEdits[a.id] ?? {};
-                          const vc = splitDateTime(typeof d.data_videocall === "string" ? d.data_videocall : a.data_videocall);
-                          const sh = splitDateTime(typeof d.data_shooting === "string" ? d.data_shooting : a.data_shooting);
+                          const dt = draftDateTimes[a.id] ?? {
+                            vcDate: splitDateTime(a.data_videocall).date,
+                            vcTime: splitDateTime(a.data_videocall).time,
+                            shDate: splitDateTime(a.data_shooting).date,
+                            shTime: splitDateTime(a.data_shooting).time,
+                          };
 
                           return (
                             <>
@@ -662,28 +705,24 @@ export default function AdminClient(props: {
                           <input
                             className="w-full rounded-md border px-2 py-1 text-xs"
                             type="date"
-                            value={vc.date}
+                            value={dt.vcDate}
                             onChange={(e) => {
                               const date = e.target.value || "";
-                              const time = vc.time;
-                              const combined = date || time ? combineDateTime(date, time) : null;
-                              setDraftEdits((prev) => ({
+                              setDraftDateTimes((prev) => ({
                                 ...prev,
-                                [a.id]: { ...prev[a.id], data_videocall: combined },
+                                [a.id]: { ...(prev[a.id] ?? dt), vcDate: date },
                               }));
                             }}
                           />
                           <input
                             className="w-full rounded-md border px-2 py-1 text-xs"
                             type="time"
-                            value={vc.time}
+                            value={dt.vcTime}
                             onChange={(e) => {
                               const time = e.target.value || "";
-                              const date = vc.date;
-                              const combined = date || time ? combineDateTime(date, time) : null;
-                              setDraftEdits((prev) => ({
+                              setDraftDateTimes((prev) => ({
                                 ...prev,
-                                [a.id]: { ...prev[a.id], data_videocall: combined },
+                                [a.id]: { ...(prev[a.id] ?? dt), vcTime: time },
                               }));
                             }}
                           />
@@ -727,28 +766,24 @@ export default function AdminClient(props: {
                           <input
                             className="w-full rounded-md border px-2 py-1 text-xs"
                             type="date"
-                            value={sh.date}
+                            value={dt.shDate}
                             onChange={(e) => {
                               const date = e.target.value || "";
-                              const time = sh.time;
-                              const combined = date || time ? combineDateTime(date, time) : null;
-                              setDraftEdits((prev) => ({
+                              setDraftDateTimes((prev) => ({
                                 ...prev,
-                                [a.id]: { ...prev[a.id], data_shooting: combined },
+                                [a.id]: { ...(prev[a.id] ?? dt), shDate: date },
                               }));
                             }}
                           />
                           <input
                             className="w-full rounded-md border px-2 py-1 text-xs"
                             type="time"
-                            value={sh.time}
+                            value={dt.shTime}
                             onChange={(e) => {
                               const time = e.target.value || "";
-                              const date = sh.date;
-                              const combined = date || time ? combineDateTime(date, time) : null;
-                              setDraftEdits((prev) => ({
+                              setDraftDateTimes((prev) => ({
                                 ...prev,
-                                [a.id]: { ...prev[a.id], data_shooting: combined },
+                                [a.id]: { ...(prev[a.id] ?? dt), shTime: time },
                               }));
                             }}
                           />
