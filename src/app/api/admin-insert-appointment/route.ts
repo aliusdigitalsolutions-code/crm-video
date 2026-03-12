@@ -29,6 +29,13 @@ function createSupabaseRouteClient(request: NextRequest) {
   return { supabase, response };
 }
 
+function withCookies(base: NextResponse, cookieSource: NextResponse) {
+  cookieSource.cookies.getAll().forEach((c) => {
+    base.cookies.set(c);
+  });
+  return base;
+}
+
 function createSupabaseAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -61,6 +68,30 @@ type AppointmentInsert = {
   link_pubblicazione: string | null;
 };
 
+export async function GET(request: NextRequest) {
+  try {
+    const { supabase, response } = createSupabaseRouteClient(request);
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return withCookies(NextResponse.json({ ok: false, authenticated: false }), response);
+    }
+
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+
+    return withCookies(
+      NextResponse.json({ ok: true, authenticated: true, userId: user.id, role: profile?.role ?? null }),
+      response,
+    );
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as { appointment?: AppointmentInsert };
@@ -70,7 +101,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing appointment.cliente_nome" }, { status: 400 });
     }
 
-    const { supabase } = createSupabaseRouteClient(request);
+    const { supabase, response } = createSupabaseRouteClient(request);
 
     const {
       data: { user },
@@ -78,7 +109,7 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+      return withCookies(NextResponse.json({ error: "Not authenticated" }, { status: 401 }), response);
     }
 
     const { data: profile, error: profileError } = await supabase
@@ -88,11 +119,11 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (profileError) {
-      return NextResponse.json({ error: profileError.message }, { status: 500 });
+      return withCookies(NextResponse.json({ error: profileError.message }, { status: 500 }), response);
     }
 
     if (profile?.role !== "admin") {
-      return NextResponse.json({ error: "Not allowed" }, { status: 403 });
+      return withCookies(NextResponse.json({ error: "Not allowed" }, { status: 403 }), response);
     }
 
     const admin = createSupabaseAdminClient();
@@ -104,14 +135,14 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return withCookies(NextResponse.json({ error: error.message }, { status: 500 }), response);
     }
 
     if (!data) {
-      return NextResponse.json({ error: "Insert failed (no row returned)" }, { status: 500 });
+      return withCookies(NextResponse.json({ error: "Insert failed (no row returned)" }, { status: 500 }), response);
     }
 
-    return NextResponse.json({ success: true, appointment: data });
+    return withCookies(NextResponse.json({ success: true, appointment: data }), response);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
