@@ -1,0 +1,171 @@
+import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+
+function createSupabaseRouteClient(request: NextRequest) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !anonKey) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  }
+
+  const response = NextResponse.next();
+
+  const supabase = createServerClient(url, anonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          request.cookies.set(name, value);
+          response.cookies.set(name, value, options);
+        });
+      },
+    },
+  });
+
+  return { supabase, response };
+}
+
+async function getAuthedUserRole(request: NextRequest) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anonKey) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  }
+
+  const { supabase, response } = createSupabaseRouteClient(request);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    return { user, role: profile?.role ?? null, response };
+  }
+
+  const authHeader = request.headers.get("authorization") || "";
+  const token = authHeader.toLowerCase().startsWith("bearer ") ? authHeader.slice(7).trim() : "";
+  if (!token) {
+    return { user: null, role: null, response };
+  }
+
+  const supabaseWithToken = createClient(url, anonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+
+  const {
+    data: { user: tokenUser },
+  } = await supabaseWithToken.auth.getUser();
+
+  if (!tokenUser) {
+    return { user: null, role: null, response };
+  }
+
+  const { data: profile } = await supabaseWithToken
+    .from("profiles")
+    .select("role")
+    .eq("id", tokenUser.id)
+    .maybeSingle();
+
+  return { user: tokenUser, role: profile?.role ?? null, response };
+}
+
+function withCookies(base: NextResponse, cookieSource: NextResponse) {
+  cookieSource.cookies.getAll().forEach((c) => {
+    base.cookies.set(c);
+  });
+  return base;
+}
+
+function createSupabaseAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !serviceRoleKey) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+  }
+
+  return createClient(url, serviceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+}
+
+type AppointmentUpdate = {
+  cliente_nome?: string;
+  stato?: string;
+  data_videocall?: string | null;
+  note_commerciali?: string | null;
+  prezzo_accordo?: number | null;
+  durata_mesi?: number | null;
+  paese_citta?: string | null;
+  data_shooting?: string | null;
+  note_video?: string | null;
+  note_social?: string | null;
+  link_pubblicazione?: string | null;
+};
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = (await request.json()) as {
+      appointmentId?: string;
+      updates?: AppointmentUpdate;
+    };
+
+    const appointmentId = body.appointmentId;
+    const updates = body.updates;
+
+    if (!appointmentId) {
+      return NextResponse.json({ error: "Missing appointmentId" }, { status: 400 });
+    }
+
+    if (!updates || typeof updates !== "object") {
+      return NextResponse.json({ error: "Missing updates" }, { status: 400 });
+    }
+
+    const { user, role, response } = await getAuthedUserRole(request);
+
+    if (!user) {
+      return withCookies(NextResponse.json({ error: "Not authenticated" }, { status: 401 }), response);
+    }
+
+    if (role !== "admin") {
+      return withCookies(NextResponse.json({ error: "Not allowed" }, { status: 403 }), response);
+    }
+
+    const admin = createSupabaseAdminClient();
+
+    const { data, error } = await admin
+      .from("appointments")
+      .update(updates)
+      .eq("id", appointmentId)
+      .select("*")
+      .single();
+
+    if (error) {
+      return withCookies(NextResponse.json({ error: error.message }, { status: 500 }), response);
+    }
+
+    if (!data) {
+      return withCookies(NextResponse.json({ error: "Update failed (no row returned)" }, { status: 500 }), response);
+    }
+
+    return withCookies(NextResponse.json({ success: true, appointment: data }), response);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

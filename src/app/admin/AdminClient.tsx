@@ -160,16 +160,40 @@ export default function AdminClient(props: {
     setError(null);
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("appointments")
-        .update(updates)
-        .eq("id", id)
-        .select("*")
-        .single();
-      if (error) throw error;
-      if (!data) {
-        throw new Error("Aggiornamento non riuscito (nessuna riga aggiornata). Verifica RLS/policy Supabase.");
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        throw new Error("Sessione non trovata. Esci e rientra (login) e riprova.");
       }
+
+      const res = await fetch("/api/admin-update-appointment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          appointmentId: id,
+          updates,
+        }),
+      });
+
+      const json = (await res.json()) as
+        | { success: true; appointment: Appointment }
+        | { error: string };
+
+      if (!res.ok) {
+        const msg = "error" in json ? json.error : "Errore durante il salvataggio";
+        throw new Error(`${msg} (HTTP ${res.status})`);
+      }
+
+      if (!("success" in json) || !json.success) {
+        throw new Error("error" in json ? json.error : "Errore durante il salvataggio");
+      }
+
+      const data = json.appointment;
 
       setAppointments((prev) => prev.map((a) => (a.id === id ? (data as Appointment) : a)));
       setEditingId(null);
