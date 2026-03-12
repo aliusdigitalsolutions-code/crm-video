@@ -7,11 +7,35 @@ import AdminCalendarView from "@/app/admin/CalendarView";
 
 function combineDateTime(date: string, time: string) {
   if (!date) return null;
-  if (!time) return null;
 
-  const [y, m, d] = date.split("-").map((v) => Number(v));
-  const [hh, mm] = time.split(":").map((v) => Number(v));
+  const raw = date.trim();
+  let y: number | null = null;
+  let m: number | null = null;
+  let d: number | null = null;
+
+  const iso = raw.match(/^\d{4}-\d{2}-\d{2}$/);
+  const it = raw.match(/^\d{2}-\d{2}-\d{4}$/);
+
+  if (iso) {
+    const parts = raw.split("-").map((v) => Number(v));
+    y = parts[0] ?? null;
+    m = parts[1] ?? null;
+    d = parts[2] ?? null;
+  } else if (it) {
+    const parts = raw.split("-").map((v) => Number(v));
+    d = parts[0] ?? null;
+    m = parts[1] ?? null;
+    y = parts[2] ?? null;
+  } else {
+    return null;
+  }
+
   if (!y || !m || !d) return null;
+
+  const t = (time || "").trim();
+  const timeParts = t ? t.split(":").map((v) => Number(v)) : [0, 0];
+  const hh = timeParts[0] ?? 0;
+  const mm = timeParts[1] ?? 0;
   if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
 
   const local = new Date(y, m - 1, d, hh, mm, 0, 0);
@@ -60,10 +84,10 @@ export default async function AdminPage() {
 
     const cliente_nome = String(formData.get("cliente_nome") ?? "").trim();
     const stato = String(formData.get("stato") ?? "potenziale");
-    const videocallDate = String(formData.get("data_videocall_date") ?? "");
-    const videocallTime = String(formData.get("data_videocall_time") ?? "");
-    const shootingDate = String(formData.get("data_shooting_date") ?? "");
-    const shootingTime = String(formData.get("data_shooting_time") ?? "");
+    const videocallDate = String(formData.get("data_videocall_date") ?? "").trim();
+    const videocallTime = String(formData.get("data_videocall_time") ?? "").trim();
+    const shootingDate = String(formData.get("data_shooting_date") ?? "").trim();
+    const shootingTime = String(formData.get("data_shooting_time") ?? "").trim();
     const data_videocall = videocallDate || videocallTime ? combineDateTime(videocallDate, videocallTime) : null;
     const data_shooting = shootingDate || shootingTime ? combineDateTime(shootingDate, shootingTime) : null;
     const prezzo_accordo_raw = String(formData.get("prezzo_accordo") ?? "").trim();

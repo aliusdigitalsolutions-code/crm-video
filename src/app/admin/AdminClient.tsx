@@ -527,28 +527,14 @@ export default function AdminClient(props: {
                 </select>
                 <div className="grid grid-cols-2 gap-2">
                   <input className="w-full rounded-md border px-2 py-1 text-xs" type="date" name="data_videocall_date" />
-                  <select className="w-full rounded-md border px-2 py-1 text-xs" name="data_videocall_time" defaultValue="">
-                    <option value="">Ora</option>
-                    {TIME_OPTIONS.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
+                  <input className="w-full rounded-md border px-2 py-1 text-xs" type="time" name="data_videocall_time" />
                 </div>
                 <input className="w-full rounded-md border px-2 py-1 text-xs" placeholder="Prezzo accordo" type="number" name="prezzo_accordo" />
                 <input className="w-full rounded-md border px-2 py-1 text-xs" placeholder="Durata mesi" type="number" name="durata_mesi" />
                 <input className="w-full rounded-md border px-2 py-1 text-xs" placeholder="Paese/Città" name="paese_citta" />
                 <div className="grid grid-cols-2 gap-2">
                   <input className="w-full rounded-md border px-2 py-1 text-xs" type="date" name="data_shooting_date" />
-                  <select className="w-full rounded-md border px-2 py-1 text-xs" name="data_shooting_time" defaultValue="">
-                    <option value="">Ora</option>
-                    {TIME_OPTIONS.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
+                  <input className="w-full rounded-md border px-2 py-1 text-xs" type="time" name="data_shooting_time" />
                 </div>
                 <textarea className="w-full rounded-md border px-2 py-1 text-xs" placeholder="Note commerciali" name="note_commerciali" />
                 <textarea className="w-full rounded-md border px-2 py-1 text-xs" placeholder="Note video" name="note_video" />
