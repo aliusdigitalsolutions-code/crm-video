@@ -90,6 +90,13 @@ export default async function AdminPage() {
     const shootingTime = String(formData.get("data_shooting_time") ?? "").trim();
     const data_videocall = videocallDate || videocallTime ? combineDateTime(videocallDate, videocallTime) : null;
     const data_shooting = shootingDate || shootingTime ? combineDateTime(shootingDate, shootingTime) : null;
+
+    if ((videocallDate || videocallTime) && !data_videocall) {
+      throw new Error(`Invalid data_videocall: date='${videocallDate}' time='${videocallTime}'`);
+    }
+    if ((shootingDate || shootingTime) && !data_shooting) {
+      throw new Error(`Invalid data_shooting: date='${shootingDate}' time='${shootingTime}'`);
+    }
     const prezzo_accordo_raw = String(formData.get("prezzo_accordo") ?? "").trim();
     const durata_mesi_raw = String(formData.get("durata_mesi") ?? "").trim();
 
@@ -116,7 +123,9 @@ export default async function AdminPage() {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    const { error } = await admin.from("appointments").insert({
+    const { data, error } = await admin
+      .from("appointments")
+      .insert({
       cliente_nome,
       stato,
       data_videocall,
@@ -130,10 +139,19 @@ export default async function AdminPage() {
       note_video,
       note_social,
       link_pubblicazione,
-    });
+      })
+      .select("id, data_videocall, data_shooting")
+      .single();
 
     if (error) {
       throw new Error(error.message);
+    }
+
+    if ((videocallDate || videocallTime) && !data?.data_videocall) {
+      throw new Error("data_videocall was not stored (null) after insert");
+    }
+    if ((shootingDate || shootingTime) && !data?.data_shooting) {
+      throw new Error("data_shooting was not stored (null) after insert");
     }
 
     redirect("/admin");
