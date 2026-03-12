@@ -230,6 +230,10 @@ export default function AdminClient(props: { initial: Appointment[] }) {
         data: { session },
       } = await supabase.auth.getSession();
 
+      if (!session?.access_token) {
+        throw new Error("Sessione non trovata. Esci e rientra (login) e riprova.");
+      }
+
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
 
@@ -250,7 +254,8 @@ export default function AdminClient(props: { initial: Appointment[] }) {
         | { error: string };
 
       if (!res.ok) {
-        throw new Error("error" in json ? json.error : "Errore durante il salvataggio");
+        const msg = "error" in json ? json.error : "Errore durante il salvataggio";
+        throw new Error(`${msg} (HTTP ${res.status})`);
       }
 
       if (!("success" in json) || !json.success) {
