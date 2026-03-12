@@ -40,11 +40,35 @@ function splitDateTime(value: string | null) {
 
 function combineDateTime(date: string, time: string) {
   if (!date) return null;
-  if (!time) return null;
 
-  const [y, m, d] = date.split("-").map((v) => Number(v));
-  const [hh, mm] = time.split(":").map((v) => Number(v));
+  const raw = date.trim();
+  let y: number | null = null;
+  let m: number | null = null;
+  let d: number | null = null;
+
+  const iso = raw.match(/^\d{4}-\d{2}-\d{2}$/);
+  const it = raw.match(/^\d{2}-\d{2}-\d{4}$/);
+
+  if (iso) {
+    const parts = raw.split("-").map((v) => Number(v));
+    y = parts[0] ?? null;
+    m = parts[1] ?? null;
+    d = parts[2] ?? null;
+  } else if (it) {
+    const parts = raw.split("-").map((v) => Number(v));
+    d = parts[0] ?? null;
+    m = parts[1] ?? null;
+    y = parts[2] ?? null;
+  } else {
+    return null;
+  }
+
   if (!y || !m || !d) return null;
+
+  const t = (time || "").trim();
+  const timeParts = t ? t.split(":").map((v) => Number(v)) : [0, 0];
+  const hh = timeParts[0] ?? 0;
+  const mm = timeParts[1] ?? 0;
   if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
 
   const local = new Date(y, m - 1, d, hh, mm, 0, 0);
@@ -324,18 +348,12 @@ export default function AdminClient(props: {
                         id={`videomaker-data-date-${a.id}`}
                         defaultValue={splitDateTime(a.data_shooting).date}
                       />
-                      <select
+                      <input
                         className="w-full rounded-md border px-2 py-1 text-xs"
+                        type="time"
                         id={`videomaker-data-time-${a.id}`}
                         defaultValue={splitDateTime(a.data_shooting).time}
-                      >
-                        <option value="">Ora</option>
-                        {TIME_OPTIONS.map((t) => (
-                          <option key={t} value={t}>
-                            {t}
-                          </option>
-                        ))}
-                      </select>
+                      />
                     </div>
                     <textarea
                       className="w-full rounded-md border px-2 py-1 text-xs"
@@ -631,8 +649,9 @@ export default function AdminClient(props: {
                               }));
                             }}
                           />
-                          <select
+                          <input
                             className="w-full rounded-md border px-2 py-1 text-xs"
+                            type="time"
                             value={vc.time}
                             onChange={(e) => {
                               const time = e.target.value || "";
@@ -643,14 +662,7 @@ export default function AdminClient(props: {
                                 [a.id]: { ...prev[a.id], data_videocall: combined },
                               }));
                             }}
-                          >
-                            <option value="">Ora</option>
-                            {TIME_OPTIONS.map((t) => (
-                              <option key={t} value={t}>
-                                {t}
-                              </option>
-                            ))}
-                          </select>
+                          />
                         </div>
                         <input
                           className="w-full rounded-md border px-2 py-1 text-xs"
@@ -702,8 +714,9 @@ export default function AdminClient(props: {
                               }));
                             }}
                           />
-                          <select
+                          <input
                             className="w-full rounded-md border px-2 py-1 text-xs"
+                            type="time"
                             value={sh.time}
                             onChange={(e) => {
                               const time = e.target.value || "";
@@ -714,14 +727,7 @@ export default function AdminClient(props: {
                                 [a.id]: { ...prev[a.id], data_shooting: combined },
                               }));
                             }}
-                          >
-                            <option value="">Ora</option>
-                            {TIME_OPTIONS.map((t) => (
-                              <option key={t} value={t}>
-                                {t}
-                              </option>
-                            ))}
-                          </select>
+                          />
                         </div>
                         <textarea
                           className="w-full rounded-md border px-2 py-1 text-xs"

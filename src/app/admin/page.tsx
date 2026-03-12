@@ -116,7 +116,7 @@ export default async function AdminPage() {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    await admin.from("appointments").insert({
+    const { error } = await admin.from("appointments").insert({
       cliente_nome,
       stato,
       data_videocall,
@@ -131,6 +131,10 @@ export default async function AdminPage() {
       note_social,
       link_pubblicazione,
     });
+
+    if (error) {
+      throw new Error(error.message);
+    }
 
     redirect("/admin");
   }
