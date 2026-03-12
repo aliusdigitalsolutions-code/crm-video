@@ -100,7 +100,10 @@ type Appointment = {
   link_pubblicazione: string | null;
 };
 
-export default function AdminClient(props: { initial: Appointment[] }) {
+export default function AdminClient(props: {
+  initial: Appointment[];
+  createAppointmentAction?: (formData: FormData) => Promise<void>;
+}) {
   const supabase = createSupabaseBrowserClient();
   const [appointments, setAppointments] = useState(props.initial);
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -514,29 +517,17 @@ export default function AdminClient(props: { initial: Appointment[] }) {
           {showNewForm && (
             <div className="mb-4 rounded-lg border p-3">
               <h3 className="text-sm font-semibold mb-3">Nuovo appuntamento</h3>
-              <div className="space-y-2">
-                <input
-                  className="w-full rounded-md border px-2 py-1 text-xs"
-                  placeholder="Cliente"
-                  id="new-cliente"
-                />
-                <select className="w-full rounded-md border px-2 py-1 text-xs" id="new-stato">
+              <form action={props.createAppointmentAction} className="space-y-2">
+                <input className="w-full rounded-md border px-2 py-1 text-xs" placeholder="Cliente" name="cliente_nome" required />
+                <select className="w-full rounded-md border px-2 py-1 text-xs" name="stato" defaultValue="potenziale">
                   <option value="potenziale">Potenziale</option>
                   <option value="chiuso">Chiuso</option>
                   <option value="in_prova">In prova</option>
                   <option value="perso">Perso</option>
                 </select>
                 <div className="grid grid-cols-2 gap-2">
-                  <input
-                    className="w-full rounded-md border px-2 py-1 text-xs"
-                    type="date"
-                    id="new-data-videocall-date"
-                  />
-                  <select
-                    className="w-full rounded-md border px-2 py-1 text-xs"
-                    id="new-data-videocall-time"
-                    defaultValue=""
-                  >
+                  <input className="w-full rounded-md border px-2 py-1 text-xs" type="date" name="data_videocall_date" />
+                  <select className="w-full rounded-md border px-2 py-1 text-xs" name="data_videocall_time" defaultValue="">
                     <option value="">Ora</option>
                     {TIME_OPTIONS.map((t) => (
                       <option key={t} value={t}>
@@ -545,34 +536,12 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                     ))}
                   </select>
                 </div>
-                <input
-                  className="w-full rounded-md border px-2 py-1 text-xs"
-                  placeholder="Prezzo accordo"
-                  type="number"
-                  id="new-prezzo"
-                />
-                <input
-                  className="w-full rounded-md border px-2 py-1 text-xs"
-                  placeholder="Durata mesi"
-                  type="number"
-                  id="new-durata"
-                />
-                <input
-                  className="w-full rounded-md border px-2 py-1 text-xs"
-                  placeholder="Paese/Città"
-                  id="new-paese-citta"
-                />
+                <input className="w-full rounded-md border px-2 py-1 text-xs" placeholder="Prezzo accordo" type="number" name="prezzo_accordo" />
+                <input className="w-full rounded-md border px-2 py-1 text-xs" placeholder="Durata mesi" type="number" name="durata_mesi" />
+                <input className="w-full rounded-md border px-2 py-1 text-xs" placeholder="Paese/Città" name="paese_citta" />
                 <div className="grid grid-cols-2 gap-2">
-                  <input
-                    className="w-full rounded-md border px-2 py-1 text-xs"
-                    type="date"
-                    id="new-data-shooting-date"
-                  />
-                  <select
-                    className="w-full rounded-md border px-2 py-1 text-xs"
-                    id="new-data-shooting-time"
-                    defaultValue=""
-                  >
+                  <input className="w-full rounded-md border px-2 py-1 text-xs" type="date" name="data_shooting_date" />
+                  <select className="w-full rounded-md border px-2 py-1 text-xs" name="data_shooting_time" defaultValue="">
                     <option value="">Ora</option>
                     {TIME_OPTIONS.map((t) => (
                       <option key={t} value={t}>
@@ -581,88 +550,23 @@ export default function AdminClient(props: { initial: Appointment[] }) {
                     ))}
                   </select>
                 </div>
-                <textarea
-                  className="w-full rounded-md border px-2 py-1 text-xs"
-                  placeholder="Note commerciali"
-                  id="new-note-commerciali"
-                />
-                <textarea
-                  className="w-full rounded-md border px-2 py-1 text-xs"
-                  placeholder="Note video"
-                  id="new-note-video"
-                />
-                <textarea
-                  className="w-full rounded-md border px-2 py-1 text-xs"
-                  placeholder="Note social"
-                  id="new-note-social"
-                />
-                <input
-                  className="w-full rounded-md border px-2 py-1 text-xs"
-                  placeholder="Link pubblicazione"
-                  id="new-link-pubblicazione"
-                />
+                <textarea className="w-full rounded-md border px-2 py-1 text-xs" placeholder="Note commerciali" name="note_commerciali" />
+                <textarea className="w-full rounded-md border px-2 py-1 text-xs" placeholder="Note video" name="note_video" />
+                <textarea className="w-full rounded-md border px-2 py-1 text-xs" placeholder="Note social" name="note_social" />
+                <input className="w-full rounded-md border px-2 py-1 text-xs" placeholder="Link pubblicazione" name="link_pubblicazione" />
                 <div className="flex gap-2">
-                  <button
-                    className="h-8 rounded-md bg-black px-3 text-xs text-white"
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const cliente = (document.getElementById("new-cliente") as HTMLInputElement)?.value;
-                      const stato = (document.getElementById("new-stato") as HTMLSelectElement)?.value;
-                      const videocallDate = (document.getElementById("new-data-videocall-date") as HTMLInputElement)?.value || "";
-                      const videocallTime = (document.getElementById("new-data-videocall-time") as HTMLSelectElement)?.value || "";
-                      const data_videocall = videocallDate || videocallTime ? combineDateTime(videocallDate, videocallTime) : null;
-                      const prezzo_accordo = Number((document.getElementById("new-prezzo") as HTMLInputElement)?.value) || null;
-                      const durata_mesi = Number((document.getElementById("new-durata") as HTMLInputElement)?.value) || null;
-                      const paese_citta = (document.getElementById("new-paese-citta") as HTMLInputElement)?.value || null;
-                      const shootingDate = (document.getElementById("new-data-shooting-date") as HTMLInputElement)?.value || "";
-                      const shootingTime = (document.getElementById("new-data-shooting-time") as HTMLSelectElement)?.value || "";
-                      const data_shooting = shootingDate || shootingTime ? combineDateTime(shootingDate, shootingTime) : null;
-                      const note_commerciali = (document.getElementById("new-note-commerciali") as HTMLTextAreaElement)?.value || null;
-                      const note_video = (document.getElementById("new-note-video") as HTMLTextAreaElement)?.value || null;
-                      const note_social = (document.getElementById("new-note-social") as HTMLTextAreaElement)?.value || null;
-                      const link_pubblicazione = (document.getElementById("new-link-pubblicazione") as HTMLInputElement)?.value || null;
-                      if (!cliente) {
-                        setError("Cliente obbligatorio");
-                        return;
-                      }
-                      if ((videocallDate || videocallTime) && !data_videocall) {
-                        setError("Per la videocall inserisci sia giorno che ora");
-                        return;
-                      }
-                      if ((shootingDate || shootingTime) && !data_shooting) {
-                        setError("Per lo shooting inserisci sia giorno che ora");
-                        return;
-                      }
-                      void onInsert({
-                        cliente_nome: cliente,
-                        stato,
-                        data_videocall,
-                        messaggio_originale_whatsapp: null,
-                        note_commerciali,
-                        prezzo_accordo,
-                        durata_mesi,
-                        file_contratto_url: null,
-                        paese_citta,
-                        data_shooting,
-                        note_video,
-                        note_social,
-                        link_pubblicazione,
-                      });
-                    }}
-                    disabled={loading}
-                  >
-                    {loading ? "Salvando..." : "Salva"}
+                  <button className="h-8 rounded-md bg-black px-3 text-xs text-white" type="submit">
+                    Salva
                   </button>
                   <button
                     className="h-8 rounded-md border border-zinc-300 px-3 text-xs text-zinc-700"
+                    type="button"
                     onClick={() => setShowNewForm(false)}
                   >
                     Annulla
                   </button>
                 </div>
-              </div>
+              </form>
             </div>
           )}
 
