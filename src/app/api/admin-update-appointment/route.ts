@@ -88,6 +88,29 @@ function withCookies(base: NextResponse, cookieSource: NextResponse) {
   return base;
 }
 
+function wantsHtml(request: NextRequest) {
+  const accept = request.headers.get("accept") || "";
+  return accept.includes("text/html");
+}
+
+function htmlResponse(payload: unknown) {
+  const body = `<!doctype html><meta charset="utf-8" /><pre>${escapeHtml(JSON.stringify(payload, null, 2))}</pre>`;
+  return new NextResponse(body, {
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+    },
+  });
+}
+
+function escapeHtml(s: string) {
+  return s
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 function createSupabaseAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -117,6 +140,24 @@ type AppointmentUpdate = {
   note_social?: string | null;
   link_pubblicazione?: string | null;
 };
+
+export async function GET(request: NextRequest) {
+  try {
+    const { user, role, response } = await getAuthedUserRole(request);
+    if (!user) {
+      const payload = { ok: false, authenticated: false };
+      const base = wantsHtml(request) ? htmlResponse(payload) : NextResponse.json(payload);
+      return withCookies(base, response);
+    }
+
+    const payload = { ok: true, authenticated: true, userId: user.id, role };
+    const base = wantsHtml(request) ? htmlResponse(payload) : NextResponse.json(payload);
+    return withCookies(base, response);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {

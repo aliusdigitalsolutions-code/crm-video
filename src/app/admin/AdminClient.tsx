@@ -31,9 +31,13 @@ function formatSupabaseError(e: unknown) {
 
 function splitDateTime(value: string | null) {
   if (!value) return { date: "", time: "" };
-  const m = value.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
-  if (!m) return { date: "", time: "" };
-  return { date: m[1] ?? "", time: m[2] ?? "" };
+  const m = value.match(/(\d{4}-\d{2}-\d{2}).*?(\d{2}:\d{2})/);
+  if (m) return { date: m[1] ?? "", time: m[2] ?? "" };
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return { date: "", time: "" };
+  const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return { date, time };
 }
 
 function combineDateTime(date: string, time: string) {
@@ -172,10 +176,17 @@ export default function AdminClient(props: {
       const dt = draftDateTimes[id];
       const updatesWithDateTimes: Partial<Appointment> = { ...updates };
       if (dt) {
-        if (dt.vcDate || dt.vcTime) {
+        if (dt.vcTime && !dt.vcDate) {
+          throw new Error("Per salvare l'orario Videocall serve anche la data.");
+        }
+        if (dt.shTime && !dt.shDate) {
+          throw new Error("Per salvare l'orario Shooting serve anche la data.");
+        }
+
+        if (dt.vcDate) {
           updatesWithDateTimes.data_videocall = combineDateTime(dt.vcDate, dt.vcTime);
         }
-        if (dt.shDate || dt.shTime) {
+        if (dt.shDate) {
           updatesWithDateTimes.data_shooting = combineDateTime(dt.shDate, dt.shTime);
         }
       }
