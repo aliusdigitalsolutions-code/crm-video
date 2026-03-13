@@ -24,6 +24,39 @@ export default function RepresentanteClient(props: { initial: Appointment[] }) {
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const sortedItems = useMemo(() => {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = today.getMonth();
+    const d = today.getDate();
+
+    function isTodayDate(dt: Date) {
+      return dt.getFullYear() === y && dt.getMonth() === m && dt.getDate() === d;
+    }
+
+    return [...items].sort((a, b) => {
+      const aDt = a.data_videocall ? new Date(a.data_videocall) : null;
+      const bDt = b.data_videocall ? new Date(b.data_videocall) : null;
+
+      const aHas = !!(aDt && !Number.isNaN(aDt.getTime()));
+      const bHas = !!(bDt && !Number.isNaN(bDt.getTime()));
+
+      const aToday = aHas && isTodayDate(aDt as Date);
+      const bToday = bHas && isTodayDate(bDt as Date);
+
+      const aGroup = aToday ? 0 : aHas ? 1 : 2;
+      const bGroup = bToday ? 0 : bHas ? 1 : 2;
+      if (aGroup !== bGroup) return aGroup - bGroup;
+
+      if (aHas && bHas) {
+        return (aDt as Date).getTime() - (bDt as Date).getTime();
+      }
+
+      // fallback: newest first
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [items]);
+
   function startEdit(a: Appointment) {
     setError(null);
     setEditingId(a.id);
@@ -125,7 +158,7 @@ export default function RepresentanteClient(props: { initial: Appointment[] }) {
             {items.length === 0 ? (
               <p className="text-sm text-zinc-600">Nessun appuntamento.</p>
             ) : (
-              items.map((a) => (
+              sortedItems.map((a) => (
                 <div key={a.id} className="rounded-lg border p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex flex-col gap-1">

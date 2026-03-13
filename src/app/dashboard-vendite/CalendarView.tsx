@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { View } from "react-big-calendar";
 import CalendarComponent from "@/components/Calendar";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
@@ -22,12 +22,29 @@ export default function CalendarView({ initial }: { initial: Appointment[] }) {
   const [appointments, setAppointments] = useState(initial);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   const selectedFullData = (selectedEvent?.resource.full_data ?? null) as
     | {
         prezzo_accordo?: number | null;
       }
     | null;
+
+  const monthAnchor = useMemo(() => {
+    const d = new Date(selectedDate);
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, [selectedDate]);
+
+  const daysInMonth = useMemo(() => {
+    return new Date(monthAnchor.getFullYear(), monthAnchor.getMonth() + 1, 0).getDate();
+  }, [monthAnchor]);
+
+  const monthStartWeekday = useMemo(() => {
+    // JS: 0=Sunday..6=Saturday
+    return new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), 1).getDay();
+  }, [monthAnchor]);
 
   // Convert appointments to calendar events
   const events: CalendarEvent[] = appointments
@@ -50,6 +67,15 @@ export default function CalendarView({ initial }: { initial: Appointment[] }) {
         },
       };
     });
+
+  const dayEvents = useMemo(() => {
+    const y = selectedDate.getFullYear();
+    const m = selectedDate.getMonth();
+    const d = selectedDate.getDate();
+    return events
+      .filter((e) => e.start.getFullYear() === y && e.start.getMonth() === m && e.start.getDate() === d)
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
+  }, [events, selectedDate]);
 
   // Always show calendar even if no events
   const hasEvents = events.length > 0;
@@ -78,7 +104,7 @@ export default function CalendarView({ initial }: { initial: Appointment[] }) {
             <div className="mb-4 flex justify-between items-center">
               <h3 className="font-semibold">Calendario Semplificato</h3>
               <span className="text-sm text-zinc-600">
-                {new Date().toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })}
+                {monthAnchor.toLocaleDateString("it-IT", { month: "long", year: "numeric" })}
               </span>
             </div>
             <div className="grid grid-cols-7 gap-1 text-xs">
@@ -87,32 +113,72 @@ export default function CalendarView({ initial }: { initial: Appointment[] }) {
                   {day}
                 </div>
               ))}
-              {Array.from({ length: 35 }, (_, i) => {
+
+              {Array.from({ length: monthStartWeekday }).map((_, idx) => (
+                <div key={`empty-${idx}`} className="p-2" />
+              ))}
+
+              {Array.from({ length: daysInMonth }, (_, i) => {
                 const dayNum = i + 1;
-                const isToday = dayNum === new Date().getDate();
-                const hasEvent = events.some(event => 
-                  event.start.getDate() === dayNum && 
-                  event.start.getMonth() === new Date().getMonth()
+                const cellDate = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), dayNum);
+                const today = new Date();
+                const isToday =
+                  cellDate.getFullYear() === today.getFullYear() &&
+                  cellDate.getMonth() === today.getMonth() &&
+                  cellDate.getDate() === today.getDate();
+                const isSelected =
+                  cellDate.getFullYear() === selectedDate.getFullYear() &&
+                  cellDate.getMonth() === selectedDate.getMonth() &&
+                  cellDate.getDate() === selectedDate.getDate();
+                const hasEvent = events.some(
+                  (event) =>
+                    event.start.getFullYear() === cellDate.getFullYear() &&
+                    event.start.getMonth() === cellDate.getMonth() &&
+                    event.start.getDate() === cellDate.getDate(),
                 );
-                
+
                 return (
-                  <div 
-                    key={i} 
+                  <button
+                    type="button"
+                    key={dayNum}
+                    onClick={() => setSelectedDate(cellDate)}
                     className={`p-2 text-center border rounded cursor-pointer transition-colors
-                      ${isToday ? 'bg-blue-100 border-blue-500' : 'hover:bg-gray-50'}
-                      ${hasEvent ? 'bg-green-100 border-green-500' : ''}
+                      ${isSelected ? "bg-blue-500 text-white border-blue-600" : isToday ? "bg-blue-100 border-blue-500" : "hover:bg-gray-50"}
+                      ${!isSelected && hasEvent ? "bg-green-100 border-green-500" : ""}
                     `}
                   >
                     <div className="font-medium">{dayNum}</div>
-                    {hasEvent && (
-                      <div className="w-2 h-2 bg-green-500 rounded-full mx-auto mt-1"></div>
-                    )}
-                  </div>
+                    {hasEvent && !isSelected && <div className="w-2 h-2 bg-green-500 rounded-full mx-auto mt-1"></div>}
+                  </button>
                 );
               })}
             </div>
             
-            {hasEvents && (
+            <div className="mt-4 p-3 bg-gray-50 rounded">
+              <h4 className="font-medium text-sm mb-2">
+                Eventi del giorno: {selectedDate.toLocaleDateString("it-IT")}
+              </h4>
+
+              {dayEvents.length === 0 ? (
+                <div className="text-xs text-zinc-600">Nessuna videocall programmata per questo giorno</div>
+              ) : (
+                dayEvents.map((event) => (
+                  <button
+                    type="button"
+                    key={event.id}
+                    className="w-full text-left text-xs p-2 bg-green-100 rounded mb-1"
+                    onClick={() => handleEventClick(event)}
+                  >
+                    <span className="font-medium">{event.title}</span>
+                    <span className="text-zinc-600 ml-2">
+                      {event.start.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+
+            {false && hasEvents && (
               <div className="mt-4 p-3 bg-gray-50 rounded">
                 <h4 className="font-medium text-sm mb-2">Eventi del mese:</h4>
                 {events.map(event => (
