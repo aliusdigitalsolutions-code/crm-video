@@ -1,4 +1,4 @@
-export type UserRole = "admin" | "rappresentante" | "videomaker" | "smm";
+export type UserRole = "admin" | "rappresentante" | "videomaker" | "videomaker_bari" | "smm";
 
 export function roleHomePath(role: UserRole) {
   switch (role) {
@@ -6,6 +6,8 @@ export function roleHomePath(role: UserRole) {
       return "/dashboard-vendite";
     case "videomaker":
       return "/agenda-shooting";
+    case "videomaker_bari":
+      return "/agenda-shooting-bari";
     case "smm":
       return "/gestione-social";
     case "admin":

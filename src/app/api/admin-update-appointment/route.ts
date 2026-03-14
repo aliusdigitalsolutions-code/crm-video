@@ -139,6 +139,7 @@ type AppointmentUpdate = {
   note_video?: string | null;
   note_social?: string | null;
   link_pubblicazione?: string | null;
+  videomaker_team?: string | null;
 };
 
 export async function GET(request: NextRequest) {

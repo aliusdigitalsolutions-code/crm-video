@@ -124,6 +124,7 @@ type Appointment = {
   note_video: string | null;
   note_social: string | null;
   link_pubblicazione: string | null;
+  videomaker_team?: string | null;
 };
 
 export default function AdminClient(props: {
@@ -311,12 +312,18 @@ export default function AdminClient(props: {
     await onSave(id, { note_social: "Da pubblicare" });
   }
 
-  async function onAssignVideomakerTask(id: string, paese_citta: string | null, data_shooting: string | null, note_video: string | null) {
+  async function onAssignVideomakerTask(
+    id: string,
+    paese_citta: string | null,
+    data_shooting: string | null,
+    note_video: string | null,
+    videomaker_team: "default" | "bari",
+  ) {
     if (!data_shooting) {
       setError("Per assegnare al Videomaker serve una data shooting (formato ISO)");
       return;
     }
-    await onSave(id, { paese_citta, data_shooting, note_video });
+    await onSave(id, { paese_citta, data_shooting, note_video, videomaker_team });
   }
 
   async function onAssignSMMTask(id: string, note_social: string | null, link_pubblicazione: string | null) {
@@ -409,6 +416,14 @@ export default function AdminClient(props: {
                 <div key={a.id} className="rounded-lg border p-3">
                   <div className="text-sm font-semibold mb-2">{a.cliente_nome}</div>
                   <div className="space-y-2">
+                    <select
+                      className="w-full rounded-md border px-2 py-1 text-xs"
+                      id={`videomaker-team-${a.id}`}
+                      defaultValue={(a as Appointment).videomaker_team ?? "default"}
+                    >
+                      <option value="default">Videomaker</option>
+                      <option value="bari">Videomaker Bari</option>
+                    </select>
                     <input
                       className="w-full rounded-md border px-2 py-1 text-xs"
                       placeholder="Paese/Città"
@@ -438,12 +453,15 @@ export default function AdminClient(props: {
                     <button
                       className="h-8 rounded-md bg-blue-600 px-3 text-xs text-white"
                       onClick={() => {
+                        const videomaker_team = ((document.getElementById(`videomaker-team-${a.id}`) as HTMLSelectElement)?.value || "default") as
+                          | "default"
+                          | "bari";
                         const paese_citta = (document.getElementById(`videomaker-paese-${a.id}`) as HTMLInputElement)?.value || null;
                         const shootingDate = (document.getElementById(`videomaker-data-date-${a.id}`) as HTMLInputElement)?.value || "";
-                        const shootingTime = (document.getElementById(`videomaker-data-time-${a.id}`) as HTMLSelectElement)?.value || "";
+                        const shootingTime = (document.getElementById(`videomaker-data-time-${a.id}`) as HTMLInputElement)?.value || "";
                         const data_shooting = shootingDate || shootingTime ? combineDateTime(shootingDate, shootingTime) : null;
                         const note_video = (document.getElementById(`videomaker-note-${a.id}`) as HTMLTextAreaElement)?.value || null;
-                        onAssignVideomakerTask(a.id, paese_citta, data_shooting, note_video);
+                        onAssignVideomakerTask(a.id, paese_citta, data_shooting, note_video, videomaker_team);
                       }}
                       disabled={loading}
                     >

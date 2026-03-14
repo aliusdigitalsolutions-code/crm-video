@@ -5,7 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import VideomakerClient from "@/app/agenda-shooting/VideomakerClient";
 import VideomakerCalendarView from "@/app/agenda-shooting/CalendarView";
 
-export default async function AgendaShootingPage() {
+export default async function AgendaShootingBariPage() {
   const supabase = await createSupabaseServerClient();
 
   const {
@@ -17,7 +17,7 @@ export default async function AgendaShootingPage() {
   }
 
   const role = await fetchMyRole(supabase);
-  if (role !== "videomaker" && role !== "admin") {
+  if (role !== "videomaker_bari" && role !== "admin") {
     redirect("/");
   }
 
@@ -27,15 +27,15 @@ export default async function AgendaShootingPage() {
       "id, cliente_nome, stato, data_shooting, paese_citta, note_video, file_contratto_url",
     )
     .eq("stato", "chiuso")
-    .eq("videomaker_team", "default")
+    .eq("videomaker_team", "bari")
     .order("data_shooting", { ascending: true });
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold">Agenda Shooting</h1>
+        <h1 className="text-2xl font-semibold">Agenda Shooting Bari</h1>
         <p className="mt-1 text-sm text-zinc-600">
-          Calendario shooting e clienti chiusi.
+          Calendario shooting e clienti chiusi (Bari).
         </p>
       </div>
       <VideomakerCalendarView initial={appointments ?? []} />

@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       .eq("id", user.id)
       .maybeSingle();
 
-    if (profile?.role !== "videomaker" && profile?.role !== "admin") {
+    if (profile?.role !== "videomaker" && profile?.role !== "videomaker_bari" && profile?.role !== "admin") {
       return NextResponse.json({ error: "Not allowed" }, { status: 403 });
     }
 
