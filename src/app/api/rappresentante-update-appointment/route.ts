@@ -102,6 +102,13 @@ function htmlResponse(payload: unknown) {
   });
 }
 
+function toMs(value: string | null | undefined) {
+  if (!value) return null;
+  const d = new Date(value);
+  const ms = d.getTime();
+  return Number.isNaN(ms) ? null : ms;
+}
+
 function escapeHtml(s: string) {
   return s
     .replaceAll("&", "&amp;")
@@ -216,6 +223,42 @@ export async function POST(request: NextRequest) {
 
     if (!data) {
       return withCookies(NextResponse.json({ error: "Update failed (no row returned)" }, { status: 500 }), response);
+    }
+
+    if (data_videocall !== undefined) {
+      const requestedMs = toMs(data_videocall);
+      const storedMs = toMs((data as any).data_videocall);
+
+      // If caller attempted to set a datetime, ensure DB actually persisted it.
+      // Compare by timestamp to avoid string format/timezone differences.
+      if (data_videocall && requestedMs !== null && storedMs !== null && requestedMs !== storedMs) {
+        return withCookies(
+          NextResponse.json(
+            {
+              error: "data_videocall non salvato in DB (valore diverso da quello richiesto)",
+              requested: data_videocall,
+              stored: (data as any).data_videocall,
+            },
+            { status: 500 },
+          ),
+          response,
+        );
+      }
+
+      // If caller attempted to set a datetime but DB returned null, report explicitly.
+      if (data_videocall && storedMs === null) {
+        return withCookies(
+          NextResponse.json(
+            {
+              error: "data_videocall non salvato in DB (rimasto null)",
+              requested: data_videocall,
+              stored: (data as any).data_videocall,
+            },
+            { status: 500 },
+          ),
+          response,
+        );
+      }
     }
 
     return withCookies(NextResponse.json({ success: true, appointment: data }), response);
