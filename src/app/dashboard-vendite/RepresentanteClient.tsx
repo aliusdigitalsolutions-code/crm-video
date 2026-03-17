@@ -5,6 +5,55 @@ import { useMemo, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
+function splitDateTime(value: string | null) {
+  if (!value) return { date: "", time: "" };
+  const m = value.match(/(\d{4}-\d{2}-\d{2}).*?(\d{2}:\d{2})/);
+  if (m) return { date: m[1] ?? "", time: m[2] ?? "" };
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return { date: "", time: "" };
+  const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return { date, time };
+}
+
+function combineDateTime(date: string, time: string) {
+  if (!date) return null;
+
+  const raw = date.trim();
+  let y: number | null = null;
+  let m: number | null = null;
+  let d: number | null = null;
+
+  const iso = raw.match(/^\d{4}-\d{2}-\d{2}$/);
+  const it = raw.match(/^\d{2}-\d{2}-\d{4}$/);
+
+  if (iso) {
+    const parts = raw.split("-").map((v) => Number(v));
+    y = parts[0] ?? null;
+    m = parts[1] ?? null;
+    d = parts[2] ?? null;
+  } else if (it) {
+    const parts = raw.split("-").map((v) => Number(v));
+    d = parts[0] ?? null;
+    m = parts[1] ?? null;
+    y = parts[2] ?? null;
+  } else {
+    return null;
+  }
+
+  if (!y || !m || !d) return null;
+
+  const t = (time || "").trim();
+  const timeParts = t ? t.split(":").map((v) => Number(v)) : [0, 0];
+  const hh = timeParts[0] ?? 0;
+  const mm = timeParts[1] ?? 0;
+  if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
+
+  const local = new Date(y, m - 1, d, hh, mm, 0, 0);
+  if (Number.isNaN(local.getTime())) return null;
+  return local.toISOString();
+}
+
 type Appointment = {
   id: string;
   created_at: string;
@@ -21,6 +70,7 @@ export default function RepresentanteClient(props: { initial: Appointment[] }) {
   const [items, setItems] = useState<Appointment[]>(props.initial);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, Partial<Appointment>>>({});
+  const [draftDateTimes, setDraftDateTimes] = useState<Record<string, { vcDate: string; vcTime: string }>>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,6 +110,14 @@ export default function RepresentanteClient(props: { initial: Appointment[] }) {
   function startEdit(a: Appointment) {
     setError(null);
     setEditingId(a.id);
+    const vc = splitDateTime(a.data_videocall);
+    setDraftDateTimes((prev) => ({
+      ...prev,
+      [a.id]: {
+        vcDate: vc.date,
+        vcTime: vc.time,
+      },
+    }));
     setDraft((prev) => ({
       ...prev,
       [a.id]: {
@@ -72,6 +130,11 @@ export default function RepresentanteClient(props: { initial: Appointment[] }) {
 
   function cancelEdit(id: string) {
     setEditingId(null);
+    setDraftDateTimes((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     setDraft((prev) => {
       const next = { ...prev };
       delete next[id];
@@ -92,10 +155,17 @@ export default function RepresentanteClient(props: { initial: Appointment[] }) {
       }
 
       const updates = draft[id] ?? {};
+      const dt = draftDateTimes[id];
+
+      if (dt?.vcTime && !dt?.vcDate) {
+        throw new Error("Per salvare l'orario Videocall serve anche la data.");
+      }
+
       const payload: {
         cliente_nome?: string;
         note_commerciali?: string | null;
         prezzo_accordo?: number | null;
+        data_videocall?: string | null;
       } = {};
 
       if (typeof updates.cliente_nome === "string") payload.cliente_nome = updates.cliente_nome;
@@ -104,6 +174,10 @@ export default function RepresentanteClient(props: { initial: Appointment[] }) {
       }
       if (updates.prezzo_accordo === null || typeof updates.prezzo_accordo === "number") {
         payload.prezzo_accordo = updates.prezzo_accordo;
+      }
+
+      if (dt?.vcDate) {
+        payload.data_videocall = combineDateTime(dt.vcDate, dt.vcTime);
       }
 
       const res = await fetch("/api/rappresentante-update-appointment", {
@@ -133,6 +207,11 @@ export default function RepresentanteClient(props: { initial: Appointment[] }) {
 
       setItems((prev) => prev.map((a) => (a.id === id ? json.appointment : a)));
       setEditingId(null);
+      setDraftDateTimes((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       setDraft((prev) => {
         const next = { ...prev };
         delete next[id];
@@ -178,7 +257,38 @@ export default function RepresentanteClient(props: { initial: Appointment[] }) {
                       )}
                     <div className="text-xs text-zinc-600">Stato: {a.stato}</div>
                     <div className="text-xs text-zinc-600">
-                      Videocall: {a.data_videocall ?? "-"}
+                      {editingId === a.id ? (
+                        <div className="mt-1 grid grid-cols-2 gap-2">
+                          <input
+                            className="h-8 w-full rounded-md border border-zinc-300 px-2 text-xs"
+                            type="date"
+                            value={(draftDateTimes[a.id]?.vcDate ?? splitDateTime(a.data_videocall).date) || ""}
+                            onChange={(e) => {
+                              const date = e.target.value || "";
+                              const current = draftDateTimes[a.id] ?? splitDateTime(a.data_videocall);
+                              setDraftDateTimes((prev) => ({
+                                ...prev,
+                                [a.id]: { vcDate: date, vcTime: prev[a.id]?.vcTime ?? (current as any).time ?? "" },
+                              }));
+                            }}
+                          />
+                          <input
+                            className="h-8 w-full rounded-md border border-zinc-300 px-2 text-xs"
+                            type="time"
+                            value={(draftDateTimes[a.id]?.vcTime ?? splitDateTime(a.data_videocall).time) || ""}
+                            onChange={(e) => {
+                              const time = e.target.value || "";
+                              const current = draftDateTimes[a.id] ?? splitDateTime(a.data_videocall);
+                              setDraftDateTimes((prev) => ({
+                                ...prev,
+                                [a.id]: { vcDate: prev[a.id]?.vcDate ?? (current as any).date ?? "", vcTime: time },
+                              }));
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <>Videocall: {a.data_videocall ?? "-"}</>
+                      )}
                     </div>
                     <div className="text-xs text-zinc-600">
                       {editingId === a.id ? (

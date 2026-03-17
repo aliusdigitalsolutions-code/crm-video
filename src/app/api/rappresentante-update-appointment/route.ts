@@ -152,9 +152,10 @@ export async function POST(request: NextRequest) {
       cliente_nome?: string;
       note_commerciali?: string | null;
       prezzo_accordo?: number | null;
+      data_videocall?: string | null;
     };
 
-    const { appointmentId, cliente_nome, note_commerciali, prezzo_accordo } = body;
+    const { appointmentId, cliente_nome, note_commerciali, prezzo_accordo, data_videocall } = body;
 
     if (!appointmentId) {
       return NextResponse.json({ error: "Missing appointmentId" }, { status: 400 });
@@ -172,6 +173,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid prezzo_accordo" }, { status: 400 });
     }
 
+    if (data_videocall !== undefined && data_videocall !== null && typeof data_videocall !== "string") {
+      return NextResponse.json({ error: "Invalid data_videocall" }, { status: 400 });
+    }
+
     const { user, role, response } = await getAuthedUserRole(request);
 
     if (!user) {
@@ -186,11 +191,13 @@ export async function POST(request: NextRequest) {
       cliente_nome?: string;
       note_commerciali?: string | null;
       prezzo_accordo?: number | null;
+      data_videocall?: string | null;
     } = {};
 
     if (cliente_nome !== undefined) payload.cliente_nome = cliente_nome;
     if (note_commerciali !== undefined) payload.note_commerciali = note_commerciali;
     if (prezzo_accordo !== undefined) payload.prezzo_accordo = prezzo_accordo;
+    if (data_videocall !== undefined) payload.data_videocall = data_videocall;
 
     const admin = createSupabaseAdminClient();
 
