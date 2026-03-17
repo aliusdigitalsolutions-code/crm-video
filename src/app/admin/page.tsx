@@ -43,6 +43,14 @@ function combineDateTime(date: string, time: string) {
   return local.toISOString();
 }
 
+function fromDateTimeLocal(value: string) {
+  const raw = (value || "").trim();
+  if (!raw) return null;
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
 export default async function AdminPage() {
   const supabase = await createSupabaseServerClient();
 
@@ -84,18 +92,29 @@ export default async function AdminPage() {
 
     const cliente_nome = String(formData.get("cliente_nome") ?? "").trim();
     const stato = String(formData.get("stato") ?? "potenziale");
+    const videocallLocal = String(formData.get("data_videocall") ?? "").trim();
+    const shootingLocal = String(formData.get("data_shooting") ?? "").trim();
+
+    // Backward compat if older fields exist
     const videocallDate = String(formData.get("data_videocall_date") ?? "").trim();
     const videocallTime = String(formData.get("data_videocall_time") ?? "").trim();
     const shootingDate = String(formData.get("data_shooting_date") ?? "").trim();
     const shootingTime = String(formData.get("data_shooting_time") ?? "").trim();
-    const data_videocall = videocallDate || videocallTime ? combineDateTime(videocallDate, videocallTime) : null;
-    const data_shooting = shootingDate || shootingTime ? combineDateTime(shootingDate, shootingTime) : null;
 
-    if ((videocallDate || videocallTime) && !data_videocall) {
-      throw new Error(`Invalid data_videocall: date='${videocallDate}' time='${videocallTime}'`);
+    const data_videocall =
+      videocallLocal ? fromDateTimeLocal(videocallLocal) : videocallDate || videocallTime ? combineDateTime(videocallDate, videocallTime) : null;
+    const data_shooting =
+      shootingLocal ? fromDateTimeLocal(shootingLocal) : shootingDate || shootingTime ? combineDateTime(shootingDate, shootingTime) : null;
+
+    if ((videocallLocal || videocallDate || videocallTime) && !data_videocall) {
+      throw new Error(
+        `Invalid data_videocall: datetime-local='${videocallLocal}' date='${videocallDate}' time='${videocallTime}'`,
+      );
     }
-    if ((shootingDate || shootingTime) && !data_shooting) {
-      throw new Error(`Invalid data_shooting: date='${shootingDate}' time='${shootingTime}'`);
+    if ((shootingLocal || shootingDate || shootingTime) && !data_shooting) {
+      throw new Error(
+        `Invalid data_shooting: datetime-local='${shootingLocal}' date='${shootingDate}' time='${shootingTime}'`,
+      );
     }
     const prezzo_accordo_raw = String(formData.get("prezzo_accordo") ?? "").trim();
     const durata_mesi_raw = String(formData.get("durata_mesi") ?? "").trim();
@@ -147,10 +166,10 @@ export default async function AdminPage() {
       throw new Error(error.message);
     }
 
-    if ((videocallDate || videocallTime) && !data?.data_videocall) {
+    if ((videocallLocal || videocallDate || videocallTime) && !data?.data_videocall) {
       throw new Error("data_videocall was not stored (null) after insert");
     }
-    if ((shootingDate || shootingTime) && !data?.data_shooting) {
+    if ((shootingLocal || shootingDate || shootingTime) && !data?.data_shooting) {
       throw new Error("data_shooting was not stored (null) after insert");
     }
 

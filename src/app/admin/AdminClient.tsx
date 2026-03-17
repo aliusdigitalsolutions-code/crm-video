@@ -635,17 +635,19 @@ export default function AdminClient(props: {
                   <option value="in_prova">In prova</option>
                   <option value="perso">Perso</option>
                 </select>
-                <div className="grid grid-cols-2 gap-2">
-                  <input className="w-full rounded-md border px-2 py-1 text-xs" type="date" name="data_videocall_date" />
-                  <input className="w-full rounded-md border px-2 py-1 text-xs" type="time" name="data_videocall_time" />
-                </div>
+                <input
+                  className="w-full rounded-md border px-2 py-1 text-xs"
+                  type="datetime-local"
+                  name="data_videocall"
+                />
                 <input className="w-full rounded-md border px-2 py-1 text-xs" placeholder="Prezzo accordo" type="number" name="prezzo_accordo" />
                 <input className="w-full rounded-md border px-2 py-1 text-xs" placeholder="Durata mesi" type="number" name="durata_mesi" />
                 <input className="w-full rounded-md border px-2 py-1 text-xs" placeholder="Paese/Città" name="paese_citta" />
-                <div className="grid grid-cols-2 gap-2">
-                  <input className="w-full rounded-md border px-2 py-1 text-xs" type="date" name="data_shooting_date" />
-                  <input className="w-full rounded-md border px-2 py-1 text-xs" type="time" name="data_shooting_time" />
-                </div>
+                <input
+                  className="w-full rounded-md border px-2 py-1 text-xs"
+                  type="datetime-local"
+                  name="data_shooting"
+                />
                 <textarea className="w-full rounded-md border px-2 py-1 text-xs" placeholder="Note commerciali" name="note_commerciali" />
                 <textarea className="w-full rounded-md border px-2 py-1 text-xs" placeholder="Note video" name="note_video" />
                 <textarea className="w-full rounded-md border px-2 py-1 text-xs" placeholder="Note social" name="note_social" />
