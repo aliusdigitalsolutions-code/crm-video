@@ -102,6 +102,13 @@ function htmlResponse(payload: unknown) {
   });
 }
 
+function toMs(value: string | null | undefined) {
+  if (!value) return null;
+  const d = new Date(value);
+  const ms = d.getTime();
+  return Number.isNaN(ms) ? null : ms;
+}
+
 function escapeHtml(s: string) {
   return s
     .replaceAll("&", "&amp;")
@@ -203,6 +210,41 @@ export async function POST(request: NextRequest) {
 
     if (!data) {
       return withCookies(NextResponse.json({ error: "Update failed (no row returned)" }, { status: 500 }), response);
+    }
+
+    // Diagnostic: if caller attempted to update data_videocall, ensure DB actually persisted it.
+    if (Object.prototype.hasOwnProperty.call(updates, "data_videocall")) {
+      const requested = updates.data_videocall;
+      const requestedMs = toMs(requested);
+      const storedMs = toMs((data as any).data_videocall);
+
+      if (requested && requestedMs !== null && storedMs !== null && requestedMs !== storedMs) {
+        return withCookies(
+          NextResponse.json(
+            {
+              error: "data_videocall non salvato in DB (valore diverso da quello richiesto)",
+              requested,
+              stored: (data as any).data_videocall,
+            },
+            { status: 500 },
+          ),
+          response,
+        );
+      }
+
+      if (requested && storedMs === null) {
+        return withCookies(
+          NextResponse.json(
+            {
+              error: "data_videocall non salvato in DB (rimasto null)",
+              requested,
+              stored: (data as any).data_videocall,
+            },
+            { status: 500 },
+          ),
+          response,
+        );
+      }
     }
 
     return withCookies(NextResponse.json({ success: true, appointment: data }), response);
